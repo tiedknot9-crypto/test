@@ -1141,7 +1141,17 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] getPatients - Data length:", data?.length, "Error:", error);
       if (error) throw error;
-      return (data || []).map(normalizePatient).filter((p: any) => !isDummyPatient(p));
+      
+      const dbPatients = (data || []).map(normalizePatient).filter((p: any) => !isDummyPatient(p));
+      const localPatients = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
+      
+      // Merge: any local patient that isOffline or not in DB
+      const offlinePatients = localPatients.filter((lp: any) => lp.isOffline || !dbPatients.some((dp: any) => dp.id === lp.id));
+      const merged = [...offlinePatients.map(normalizePatient).filter((p: any) => !isDummyPatient(p)), ...dbPatients];
+      
+      // Save merged list back to storage to ensure consistency
+      storage.set(STORAGE_KEYS.PATIENTS, merged);
+      return merged;
     } catch (error: any) {
       console.warn('Error fetching patients, falling back to local storage:', error.message);
       return (storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || []).map(normalizePatient).filter((p: any) => !isDummyPatient(p));
@@ -1159,7 +1169,15 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] createPatient - Data:", data, "Error:", error);
       if (error) throw error;
-      return normalizePatient(data[0]);
+      const savedPatient = normalizePatient(data[0]);
+      
+      // Update local storage too!
+      const list = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
+      const filteredList = list.filter((p: any) => p.id !== savedPatient.id && p.mrn !== savedPatient.mrn);
+      filteredList.unshift(savedPatient);
+      storage.set(STORAGE_KEYS.PATIENTS, filteredList);
+      
+      return savedPatient;
     } catch (error: any) {
       console.error("[Supabase Error] createPatient failed, falling back to local storage:", error);
       console.warn('Handling local fallback for create patient:', error.message);
