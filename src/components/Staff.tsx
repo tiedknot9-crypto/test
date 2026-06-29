@@ -254,14 +254,14 @@ export default function Staff() {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="super_admin">Super Admin</SelectItem>
-                        <SelectItem value="doctor">Doctor</SelectItem>
-                        <SelectItem value="surgeon">Surgeon</SelectItem>
-                        <SelectItem value="nurse">Nurse</SelectItem>
-                        <SelectItem value="reception">Receptionist</SelectItem>
-                        <SelectItem value="pharmacist">Pharmacist</SelectItem>
-                        <SelectItem value="lab_staff">Lab Staff</SelectItem>
-                        <SelectItem value="accountant">Accountant</SelectItem>
+                        <SelectItem value="super_admin">super_admin</SelectItem>
+                        <SelectItem value="doctor">doctor</SelectItem>
+                        <SelectItem value="surgeon">surgeon</SelectItem>
+                        <SelectItem value="nurse">nurse</SelectItem>
+                        <SelectItem value="reception">reception</SelectItem>
+                        <SelectItem value="pharmacist">pharmacist</SelectItem>
+                        <SelectItem value="lab_staff">lab_staff</SelectItem>
+                        <SelectItem value="accountant">accountant</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

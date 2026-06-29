@@ -16,18 +16,18 @@ export interface PharmacySettings {
 
 export const DEFAULT_PHARMACY_SETTINGS: PharmacySettings = {
   logoUrl: '',
-  pharmacyName: 'Medicare Wholesale Pharmacy',
-  address: '13 Health Street, Mumbai, Maharashtra, India',
-  phone: '9345678991',
+  pharmacyName: 'Global Hospital and Maternity Centre',
+  address: 'Infront of Aura Inn , Bansi Road near Badewan , Basti UP 272001',
+  phone: '+918601561055',
   tagline: 'A single stop for all your Healthcare needs!',
-  gstin: '26CORPP3939N1ZA',
-  bankName: 'ICICI',
-  bankBranch: 'Surate',
-  bankAccNo: '2715500356',
-  bankIfsc: 'ICIC045F',
-  upiId: 'ifox@icici',
+  gstin: '',
+  bankName: 'pnb',
+  bankBranch: 'BASTI',
+  bankAccNo: '11272187888',
+  bankIfsc: 'HDFC272001',
+  upiId: 'GDHJGFD',
   termsAndConditions: [
-    'Subject to Maharashtra Jurisdiction.',
+    'Subject to Uttar Pradesh Jurisdiction.',
     'Our Responsibility Ceases as soon as goods leave our Premises.',
     'Goods once sold will not be taken back.',
     'Delivery Ex-Premises.'

@@ -274,6 +274,7 @@ function QuickRegisterForm({ currentUser }: { currentUser: UserType | null }) {
     else if (formData.facility === 'Pharmacy') registration_type = 'Quick-Pharmacy';
     else if (formData.facility === 'Radiology') registration_type = 'Quick-Radiology';
     else if (formData.facility === 'OPD') registration_type = 'OPD';
+    else if (formData.facility === 'Emergency') registration_type = 'Emergency';
 
     const patientToAdd = {
       name: formData.name,
@@ -309,7 +310,7 @@ function QuickRegisterForm({ currentUser }: { currentUser: UserType | null }) {
           // Load custom OPD Charges settings from local storage
           const opdCharges = storage.get(STORAGE_KEYS.OPD_CHARGES, {
             reg: 200,
-            appt: 300,
+            appt: 200,
             consult: 500
           });
 
@@ -440,6 +441,7 @@ function QuickRegisterForm({ currentUser }: { currentUser: UserType | null }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="OPD">OPD Consultation</SelectItem>
+              <SelectItem value="Emergency">Emergency</SelectItem>
               <SelectItem value="Pharmacy">Pharmacy / Medicine</SelectItem>
               <SelectItem value="Lab">Laboratory / Blood Test</SelectItem>
               <SelectItem value="Radiology">Radiology / X-Ray</SelectItem>
@@ -459,11 +461,11 @@ function QuickRegisterForm({ currentUser }: { currentUser: UserType | null }) {
 
 export default function App() {
   const [hospitalInfo, setHospitalInfo] = useState(() => storage.get(STORAGE_KEYS.HOSPITAL_INFO, {
-    name: 'GLOBAL HOSPITAL',
-    address: '123, Medical Square, City Center',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
     gst: '27AAAAA0000A1Z5',
-    phone: '+91 98765 43210',
-    email: 'contact@globalhospital.com',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null as string | null
   }));
 

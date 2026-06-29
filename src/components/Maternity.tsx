@@ -495,9 +495,7 @@ export default function Maternity() {
                       onValueChange={(v) => setNewDelivery({...newDelivery, surgeon_id: v})}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select doctor">
-                          {staff.find(s => s.id === newDelivery.surgeon_id)?.name || 'Select doctor'}
-                        </SelectValue>
+                        <SelectValue placeholder="Select doctor" />
                       </SelectTrigger>
                       <SelectContent>
                         {staff.map((s: any) => (
@@ -826,9 +824,7 @@ export default function Maternity() {
                     onValueChange={(v) => setEditingDelivery({...editingDelivery, surgeon_id: v})}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select doctor">
-                        {staff.find(s => s.id === editingDelivery.surgeon_id)?.name || 'Select doctor'}
-                      </SelectValue>
+                      <SelectValue placeholder="Select doctor" />
                     </SelectTrigger>
                     <SelectContent>
                       {staff.map((s: any) => (

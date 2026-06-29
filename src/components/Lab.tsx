@@ -160,9 +160,9 @@ function LabQuickRegisterForm({ onRegistered, canMakeLabAndRadio }: { onRegister
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="male">male</SelectItem>
+              <SelectItem value="female">female</SelectItem>
+              <SelectItem value="other">other</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -227,6 +227,9 @@ export default function Lab() {
     time: '10:00 AM',
     urgency: 'Routine'
   });
+  const [orderTestSelectValue, setOrderTestSelectValue] = useState("");
+  const [billingTestSelectValue, setBillingTestSelectValue] = useState("");
+  const [billingPkgSelectValue, setBillingPkgSelectValue] = useState("");
   
   // Test Setup states
   const [isTestSetupOpen, setIsTestSetupOpen] = useState(false);
@@ -242,10 +245,10 @@ export default function Lab() {
   
   const [templateImage, setTemplateImage] = useState<string | null>(() => storage.get(STORAGE_KEYS.TEMPLATE_IMAGE, null));
   const [hospitalInfo, setHospitalInfo] = useState(() => storage.get(STORAGE_KEYS.HOSPITAL_INFO, {
-    name: 'GLOBAL HOSPITAL',
-    address: '123 Healthcare Way, Medical City',
-    phone: '+91 98765 43210',
-    email: 'accounts@dcglobal.com',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null as string | null
   }));
 
@@ -543,6 +546,9 @@ export default function Lab() {
     if (test) {
       setSelectedTests([...selectedTests, { id: test.id || test.name, name: test.name, price: test.price || test.rate }]);
     }
+    setTimeout(() => {
+      setBillingTestSelectValue("");
+    }, 50);
   };
 
   const removeTestFromBill = (index: number) => {
@@ -563,6 +569,8 @@ export default function Lab() {
     setPatientSearchTerm('');
     setShowPatientResults(false);
     setDiscount(0);
+    setBillingTestSelectValue("");
+    setBillingPkgSelectValue("");
   };
 
   const handleDeleteBill = async (id: string) => {
@@ -1143,10 +1151,12 @@ export default function Lab() {
                 <div className="space-y-2">
                   <Label>Service Type</Label>
                   <Select value={newBooking.type} onValueChange={(v) => setNewBooking({...newBooking, type: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="LAB">Laboratory</SelectItem>
-                      <SelectItem value="RADIOLOGY">Radiology</SelectItem>
+                      <SelectItem value="LAB">LAB</SelectItem>
+                      <SelectItem value="RADIOLOGY">RADIOLOGY</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1297,19 +1307,23 @@ export default function Lab() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pathology">Pathology (Blood/Urine/etc)</SelectItem>
-                      <SelectItem value="radiology">Radiology (X-Ray/USG/CT)</SelectItem>
+                      <SelectItem value="pathology">pathology</SelectItem>
+                      <SelectItem value="radiology">radiology</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Add Tests under {newTestOrder.category === 'pathology' ? 'Pathology' : 'Radiology'}</Label>
                   <Select 
+                    value={orderTestSelectValue}
                     onValueChange={(name) => {
                       const test = labRates.find(t => t.name === name);
                       if (test && !selectedTestConfigs.some(t => t.id === test.id)) {
                         setSelectedTestConfigs([...selectedTestConfigs, test]);
                       }
+                      setTimeout(() => {
+                        setOrderTestSelectValue("");
+                      }, 50);
                     }}
                   >
                     <SelectTrigger>
@@ -1368,9 +1382,9 @@ export default function Lab() {
                       <SelectValue placeholder="Select urgency" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="routine">Routine</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                      <SelectItem value="stat">STAT (Emergency)</SelectItem>
+                      <SelectItem value="routine">routine</SelectItem>
+                      <SelectItem value="urgent">urgent</SelectItem>
+                      <SelectItem value="stat">stat</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2486,7 +2500,7 @@ export default function Lab() {
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label>Add Test</Label>
-                          <Select onValueChange={addTestToBill}>
+                          <Select value={billingTestSelectValue} onValueChange={addTestToBill}>
                             <SelectTrigger className="h-9">
                               <SelectValue placeholder="Select test" />
                             </SelectTrigger>
@@ -2499,12 +2513,18 @@ export default function Lab() {
                         </div>
                         <div className="space-y-2">
                           <Label>Add Package</Label>
-                          <Select onValueChange={(val) => {
-                            const pkg = LAB_PACKAGES.find(p => p.id === val);
-                            if (pkg) {
-                              setSelectedTests([...selectedTests, { id: pkg.id, name: pkg.name, price: pkg.price }]);
-                            }
-                          }}>
+                          <Select 
+                            value={billingPkgSelectValue}
+                            onValueChange={(val) => {
+                              const pkg = LAB_PACKAGES.find(p => p.id === val);
+                              if (pkg) {
+                                setSelectedTests([...selectedTests, { id: pkg.id, name: pkg.name, price: pkg.price }]);
+                              }
+                              setTimeout(() => {
+                                setBillingPkgSelectValue("");
+                              }, 50);
+                            }}
+                          >
                             <SelectTrigger className="h-9 border-medical-blue text-medical-blue font-semibold">
                               <Package className="w-3 h-3 mr-2" />
                               <SelectValue placeholder="Select package" />
@@ -2591,9 +2611,9 @@ export default function Lab() {
                           <SelectValue placeholder="Select mode" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="upi">UPI / QR</SelectItem>
-                          <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="cash">cash</SelectItem>
+                          <SelectItem value="upi">upi</SelectItem>
+                          <SelectItem value="card">card</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

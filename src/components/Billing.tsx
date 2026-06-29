@@ -83,10 +83,10 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [templateImage, setTemplateImage] = useState<string | null>(() => storage.get(STORAGE_KEYS.TEMPLATE_IMAGE, null));
   const [hospitalInfo, setHospitalInfo] = useState(() => storage.get(STORAGE_KEYS.HOSPITAL_INFO, {
-    name: 'GLOBAL HOSPITAL',
-    address: '123 Healthcare Way, Medical City',
-    phone: '+91 98765 43210',
-    email: 'accounts@dcglobal.com',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null as string | null
   }));
 
@@ -347,40 +347,105 @@ export default function Billing() {
       // If we don't have patients in the DB, let's create a couple of patients first
       if (activePatients.length === 0) {
         toast.info('Seeding dynamic mock patients first to link ledger accounts...');
-        const p1 = await supabaseService.createPatient({
-          name: 'Amit Patel',
-          age: 28,
-          gender: 'Male',
-          phone: '9876543210',
-          address: 'B-42, Sector 15, Noida',
-          bloodGroup: 'A+',
-          status: 'Active',
-          dob: '1996-05-15'
-        });
-        const p2 = await supabaseService.createPatient({
-          name: 'Priya Singh',
-          age: 45,
-          gender: 'Female',
-          phone: '9123456789',
-          address: 'Flat 201, Green View, Mumbai',
-          bloodGroup: 'O-',
-          status: 'High Risk',
-          dob: '1979-11-10'
-        });
-        const p3 = await supabaseService.createPatient({
-          name: 'Rahul Sharma',
-          age: 34,
-          gender: 'Male',
-          phone: '9543210987',
-          address: 'Main St, Delhi',
-          bloodGroup: 'B+',
-          status: 'Active',
-          dob: '1990-02-20'
-        });
+        
+        let p1 = null;
+        let p2 = null;
+        let p3 = null;
+        
+        try {
+          p1 = await supabaseService.createPatient({
+            name: 'Amit Patel',
+            age: 28,
+            gender: 'Male',
+            phone: '9876543210',
+            address: 'B-42, Sector 15, Noida',
+            bloodGroup: 'A+',
+            status: 'Active',
+            dob: '1996-05-15'
+          });
+        } catch (e) {
+          console.warn('DB creation of Amit Patel failed, using local fallback.', e);
+        }
+
+        try {
+          p2 = await supabaseService.createPatient({
+            name: 'Priya Singh',
+            age: 45,
+            gender: 'Female',
+            phone: '9123456789',
+            address: 'Flat 201, Green View, Mumbai',
+            bloodGroup: 'O-',
+            status: 'High Risk',
+            dob: '1979-11-10'
+          });
+        } catch (e) {
+          console.warn('DB creation of Priya Singh failed, using local fallback.', e);
+        }
+
+        try {
+          p3 = await supabaseService.createPatient({
+            name: 'Rahul Sharma',
+            age: 34,
+            gender: 'Male',
+            phone: '9543210987',
+            address: 'Main St, Delhi',
+            bloodGroup: 'B+',
+            status: 'Active',
+            dob: '1990-02-20'
+          });
+        } catch (e) {
+          console.warn('DB creation of Rahul Sharma failed, using local fallback.', e);
+        }
         
         if (p1) activePatients.push(p1);
         if (p2) activePatients.push(p2);
         if (p3) activePatients.push(p3);
+
+        // Fallback for offline/local-only or if DB writes failed/returned null
+        if (activePatients.length === 0) {
+          console.warn("Real database patient seeding was not successful. Seeding locally to ensure a seamless experience.");
+          const localP1 = {
+            id: 'demo-p1',
+            name: 'Amit Patel',
+            age: 28,
+            gender: 'Male',
+            phone: '9876543210',
+            address: 'B-42, Sector 15, Noida',
+            bloodGroup: 'A+',
+            status: 'Active',
+            dob: '1996-05-15',
+            created_at: new Date().toISOString()
+          };
+          const localP2 = {
+            id: 'demo-p2',
+            name: 'Priya Singh',
+            age: 45,
+            gender: 'Female',
+            phone: '9123456789',
+            address: 'Flat 201, Green View, Mumbai',
+            bloodGroup: 'O-',
+            status: 'High Risk',
+            dob: '1979-11-10',
+            created_at: new Date().toISOString()
+          };
+          const localP3 = {
+            id: 'demo-p3',
+            name: 'Rahul Sharma',
+            age: 34,
+            gender: 'Male',
+            phone: '9543210987',
+            address: 'Main St, Delhi',
+            bloodGroup: 'B+',
+            status: 'Active',
+            dob: '1990-02-20',
+            created_at: new Date().toISOString()
+          };
+
+          const existingPatients = storage.get(STORAGE_KEYS.PATIENTS, []);
+          const updatedPatients = [localP1, localP2, localP3, ...existingPatients];
+          storage.set(STORAGE_KEYS.PATIENTS, updatedPatients);
+          activePatients.push(localP1, localP2, localP3);
+        }
       }
       
       if (activePatients.length === 0) {
@@ -461,7 +526,7 @@ export default function Billing() {
           payment_status: 'Partial',
           created_at: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
           discount_amount: 2000,
-          tax_amount: 2500,
+          tax_amount: 250,
           total_amount: 50000,
           payable_amount: 48000,
           paid_amount: 20000,
@@ -498,22 +563,58 @@ export default function Billing() {
       ];
       
       for (const item of seedInvoices) {
-        await supabaseService.createInvoice({
-          patient_id: item.patient_id,
-          type: item.type,
-          payment_method: item.payment_method,
-          status: item.status,
-          payment_status: item.payment_status,
-          discount_amount: item.discount_amount,
-          tax_amount: item.tax_amount,
-          total_amount: item.total_amount,
-          payable_amount: item.payable_amount,
-          paid_amount: item.paid_amount,
-          created_at: item.created_at
-        }, item.items);
+        let createdInv = null;
+        try {
+          createdInv = await supabaseService.createInvoice({
+            patient_id: item.patient_id,
+            type: item.type,
+            payment_method: item.payment_method,
+            status: item.status,
+            payment_status: item.payment_status,
+            discount_amount: item.discount_amount,
+            tax_amount: item.tax_amount,
+            total_amount: item.total_amount,
+            payable_amount: item.payable_amount,
+            paid_amount: item.paid_amount,
+            created_at: item.created_at
+          }, item.items);
+        } catch (e) {
+          console.warn('DB creation of invoice failed, using local fallback.', e);
+        }
+
+        // Fallback for offline/local-only or if DB writes failed/returned null
+        if (!createdInv) {
+          const localId = 'demo-bill-' + Math.random().toString(36).substring(2, 9);
+          const localInv = {
+            id: localId,
+            patient_id: item.patient_id,
+            type: item.type,
+            payment_method: item.payment_method,
+            status: item.status,
+            payment_status: item.payment_status,
+            discount_amount: item.discount_amount,
+            tax_amount: item.tax_amount,
+            total_amount: item.total_amount,
+            payable_amount: item.payable_amount,
+            paid_amount: item.paid_amount,
+            created_at: item.created_at,
+            date: item.created_at.split('T')[0],
+            isOffline: true
+          };
+          const existingBills = storage.get(STORAGE_KEYS.BILLING, []);
+          storage.set(STORAGE_KEYS.BILLING, [localInv, ...existingBills]);
+
+          const existingItems = storage.get('hms_invoice_items', []);
+          const formattedItems = item.items.map(it => ({
+            ...it,
+            id: 'demo-item-' + Math.random().toString(36).substring(2, 9),
+            invoice_id: localId
+          }));
+          storage.set('hms_invoice_items', [...formattedItems, ...existingItems]);
+        }
       }
       
-      toast.success('Successfully provisioned realistic clinical ledgers in live database!');
+      toast.success('Successfully provisioned realistic clinical ledgers!');
       await fetchData();
     } catch (err: any) {
       console.error(err);
@@ -969,7 +1070,17 @@ export default function Billing() {
   });
 
   const groupedBillsByDate = bills.reduce((acc: Record<string, any[]>, bill) => {
-    const dateKey = bill.date || new Date(bill.created_at).toISOString().split('T')[0];
+    let dateKey = bill.date || '';
+    if (!dateKey && bill.created_at) {
+      try {
+        dateKey = new Date(bill.created_at).toISOString().split('T')[0];
+      } catch (e) {
+        dateKey = '';
+      }
+    }
+    if (!dateKey) {
+      dateKey = new Date().toISOString().split('T')[0];
+    }
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(bill);
     return acc;
@@ -1677,41 +1788,59 @@ export default function Billing() {
                 <DialogDescription>Viewing all transactions grouped by date.</DialogDescription>
               </DialogHeader>
               <ScrollArea className="flex-1 p-6">
-                <div className="space-y-8">
-                  {Object.entries(groupedBillsByDate).sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime()).map(([dateKey, dayBills]) => {
-                    const typedDayBills = dayBills as any[];
-                    return (
-                    <div key={dateKey} className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-medical-blue">{formatDate(dateKey)}</Badge>
-                        <Separator className="flex-1" />
-                        <span className="text-xs font-bold text-muted-foreground">
-                          {typedDayBills.length} Transactions | {formatCurrency(typedDayBills.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0))}
-                        </span>
+                <div className="space-y-8 h-full">
+                  {Object.keys(groupedBillsByDate).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center h-full">
+                      <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4">
+                        <History className="w-8 h-8 text-slate-400" />
                       </div>
-                      <div className="space-y-2">
-                        {typedDayBills.map((bill) => {
-                          const patient = patients.find(p => p.id === bill.patient_id);
-                          return (
-                            <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                              <div className="flex items-center gap-4">
-                                <div className="text-xs font-bold text-medical-blue">#{bill.id.split('-')[1]?.substring(0, 6) || bill.id.substring(bill.id.length-6)}</div>
-                                <div>
-                                  <p className="text-sm font-semibold">{patient?.name}</p>
-                                  <p className="text-[10px] text-muted-foreground uppercase">{bill.invoice_items?.[0]?.category || 'General'} Charge</p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm font-bold">{formatCurrency(bill.total_amount)}</p>
-                                <Badge variant="outline" className="text-[8px] h-4">{bill.payment_method}</Badge>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                      <h3 className="text-sm font-bold text-slate-800">No Transaction Ledger Recorded</h3>
+                      <p className="text-xs text-slate-500 mt-2 max-w-sm leading-relaxed">
+                        Daily transaction summaries are grouped dynamically here once patient invoices are processed or generated.
+                      </p>
                     </div>
-                  );
-                  })}
+                  ) : (
+                    Object.entries(groupedBillsByDate)
+                      .sort((a, b) => {
+                        const timeA = new Date(a[0]).getTime();
+                        const timeB = new Date(b[0]).getTime();
+                        return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+                      })
+                      .map(([dateKey, dayBills]) => {
+                        const typedDayBills = dayBills as any[];
+                        return (
+                          <div key={dateKey} className="space-y-4">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-medical-blue">{formatDate(dateKey)}</Badge>
+                              <Separator className="flex-1" />
+                              <span className="text-xs font-bold text-muted-foreground">
+                                {typedDayBills.length} {typedDayBills.length === 1 ? 'Transaction' : 'Transactions'} | {formatCurrency(typedDayBills.reduce((sum, b) => sum + (Number(b.total_amount) || 0), 0))}
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              {typedDayBills.map((bill) => {
+                                const patient = patients.find(p => p.id === bill.patient_id);
+                                return (
+                                  <div key={bill.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                      <div className="text-xs font-bold text-medical-blue">#{bill.id.split('-')[1]?.substring(0, 6) || bill.id.substring(bill.id.length-6)}</div>
+                                      <div>
+                                        <p className="text-sm font-semibold">{patient?.name || bill.patient_name || bill.patients?.name || 'Walk-in Patient'}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase">{bill.invoice_items?.[0]?.category || 'General'} Charge</p>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-bold">{formatCurrency(bill.total_amount)}</p>
+                                      <Badge variant="outline" className="text-[8px] h-4">{bill.payment_method}</Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
                 </div>
               </ScrollArea>
               <DialogFooter className="p-6 border-t">

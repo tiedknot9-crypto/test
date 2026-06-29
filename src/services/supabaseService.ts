@@ -506,7 +506,7 @@ function cleanPatientForPostgres(p: any) {
 
   const validColumns = [
     'id', 'mrn', 'name', 'phone', 'email', 'dob', 'age', 'gender', 'blood_group',
-    'address', 'guardian_name', 'mother_name', 'mother_phone', 'father_name', 'father_phone',
+    'address', 'guardian_name', 'father_name', 'father_phone',
     'husband_name', 'husband_phone', 'tpa_id', 'tpa_validity', 'status',
     'registration_type', 'needs_admission', 'attending_doctor_id', 'created_at', 'updated_at'
   ];
@@ -1169,7 +1169,10 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] createPatient - Data:", data, "Error:", error);
       if (error) throw error;
-      const savedPatient = normalizePatient(data[0]);
+      const savedPatient = normalizePatient({
+        ...patient,
+        ...data[0]
+      });
       
       // Update local storage too!
       const list = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
@@ -1210,7 +1213,19 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] updatePatient - Data:", data, "Error:", error);
       if (error) throw error;
-      return normalizePatient(data[0]);
+      
+      const list = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
+      const target = list.find((p: any) => p.id === id) || {};
+      const savedPatient = normalizePatient({
+        ...target,
+        ...updates,
+        ...data[0]
+      });
+      
+      const updated = list.map((p: any) => p.id === id ? savedPatient : p);
+      storage.set(STORAGE_KEYS.PATIENTS, updated);
+      broadcastDataMutation('patients', 'update');
+      return savedPatient;
     } catch (error: any) {
       console.error("[Supabase Error] updatePatient failed, falling back to local storage:", error);
       console.warn('Handling local fallback for update patient:', error.message);
@@ -1323,6 +1338,23 @@ const rawSupabaseService = {
     } catch (error: any) {
       console.error('Error updating appointment:', error.message);
       return null;
+    }
+  },
+
+  deleteAppointment: async (id: string) => {
+    try {
+      console.log("[Supabase Request] deleteAppointment - ID:", id);
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+      
+      console.log("[Supabase Response] deleteAppointment - Error:", error);
+      if (error) throw error;
+      return true;
+    } catch (error: any) {
+      console.error("[Supabase Error] deleteAppointment failed:", error);
+      return false;
     }
   },
 

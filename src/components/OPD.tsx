@@ -119,13 +119,13 @@ export default function OPD() {
   const [fromDateFilter, setFromDateFilter] = useState<string>('');
   const [toDateFilter, setToDateFilter] = useState<string>('');
   const [appointmentFee, setAppointmentFee] = useState<number>(() => {
-    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 300, consult: 500 });
+    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 200, consult: 500 });
     return charges.consult || 500;
   }); 
   
   // Custom Fee / Charge applies checkboxes states
   const [selectedRegFees, setSelectedRegFees] = useState(() => {
-    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 300, consult: 500 });
+    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 200, consult: 500 });
     return {
       reg: { name: 'OPD Registration Fee', checked: false, amount: 0 },
       appt: { name: 'Appointment Fee', checked: false, amount: charges.appt },
@@ -134,7 +134,7 @@ export default function OPD() {
   });
 
   const [selectedApptFees, setSelectedApptFees] = useState(() => {
-    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 300, consult: 500 });
+    const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 200, consult: 500 });
     return {
       reg: { name: 'OPD Registration Fee', checked: false, amount: 0 },
       appt: { name: 'Appointment Fee', checked: true, amount: 0 },
@@ -214,10 +214,10 @@ export default function OPD() {
   const [savedPrescriptions, setSavedPrescriptions] = useState<any[]>([]);
   const [templateImage, setTemplateImage] = useState<string | null>(storage.get(STORAGE_KEYS.TEMPLATE_IMAGE, null));
   const [hospitalInfo, setHospitalInfo] = useState(storage.get(STORAGE_KEYS.HOSPITAL_INFO, {
-    name: 'GLOBAL HOSPITAL',
-    address: '123 Healthcare Way, Medical City',
-    phone: '+91 98765 43210',
-    email: 'accounts@dcglobal.com',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null as string | null
   }));
 
@@ -299,7 +299,7 @@ export default function OPD() {
 
   useEffect(() => {
     const handleSync = () => {
-      const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 300, consult: 500 });
+      const charges = storage.get(STORAGE_KEYS.OPD_CHARGES, { reg: 200, appt: 200, consult: 500 });
       setAppointmentFee(charges.consult || 500);
       setSelectedRegFees({
         reg: { name: 'OPD Registration Fee', checked: false, amount: 0 },
@@ -1032,7 +1032,10 @@ export default function OPD() {
 
     const success = await supabaseService.deletePatient(id);
     if (success) {
-      setPatients(patients.filter(p => p.id !== id));
+      const updatedList = patients.filter(p => p.id !== id);
+      setPatients(updatedList);
+      storage.set(STORAGE_KEYS.PATIENTS, updatedList);
+      window.dispatchEvent(new Event('storage'));
       toast.success('Patient record removed');
     } else {
       toast.error('Failed to delete patient');
@@ -1113,20 +1116,22 @@ export default function OPD() {
 
   const handleDeleteAppointment = async (id: string) => {
     const aptToDelete = appointments.find(a => a.id === id);
+    if (!window.confirm(`Are you sure you want to permanently delete appointment for ${aptToDelete?.patientName || 'this patient'}?`)) return;
+
     const updated = appointments.filter(a => a.id !== id);
     setAppointments(updated);
     storage.set(STORAGE_KEYS.APPOINTMENTS, updated);
     
     try {
       if (id && !id.startsWith('apt-') && !id.startsWith('off-')) {
-        await supabaseService.updateAppointment(id, { status: 'Cancelled' });
+        await supabaseService.deleteAppointment(id);
       }
     } catch (e) {
-      console.warn('Supabase cancel alignment error:', e);
+      console.warn('Supabase delete appointment error:', e);
     }
     
     window.dispatchEvent(new Event('storage'));
-    toast.success('Appointment cancelled successfully');
+    toast.success('Appointment deleted successfully');
   };
 
   const handleRefundAppointment = async (id: string) => {

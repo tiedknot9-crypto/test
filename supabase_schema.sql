@@ -280,7 +280,7 @@ CREATE TABLE IF NOT EXISTS public.quick_registrations (
   phone TEXT,
   age INTEGER,
   gender TEXT,
-  facility TEXT DEFAULT 'OPD', -- OPD, Lab, Pharmacy, Radiology
+  facility TEXT DEFAULT 'OPD', -- OPD, Lab, Pharmacy, Radiology, Emergency
   status TEXT DEFAULT 'Active',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

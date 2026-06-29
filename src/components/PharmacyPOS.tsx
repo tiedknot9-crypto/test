@@ -577,9 +577,9 @@ export default function PharmacyPOS() {
       phone: string;
       logo?: string | null;
     }>(STORAGE_KEYS.HOSPITAL_INFO, {
-      name: 'GLOBAL HOSPITAL',
-      address: '123, Medical Square, City Center',
-      phone: '+91 98765 43210'
+      name: 'Global Multispeciality Hospital',
+      address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
+      phone: '+91 6394517005'
     });
 
     const printWindow = window.open('', '_blank', 'width=300,height=600');

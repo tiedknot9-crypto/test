@@ -52,10 +52,10 @@ export default function Insurance() {
   const [dischargeRecords, setDischargeRecords] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [hospitalInfo, setHospitalInfo] = useState<any>({
-    name: 'GLOBAL HOSPITAL',
-    address: '123 Healthcare Way, Medical City',
-    phone: '+91 98765 43210',
-    email: 'accounts@dcglobal.com',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null
   });
   const [loading, setLoading] = useState(true);

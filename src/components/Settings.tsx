@@ -740,11 +740,11 @@ export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }
   };
   // Hospital Info State
   const [hospitalInfo, setHospitalInfo] = useState(() => storage.get(STORAGE_KEYS.HOSPITAL_INFO, {
-    name: 'GLOBAL HOSPITAL',
-    address: '123, Medical Square, City Center',
+    name: 'Global Multispeciality Hospital',
+    address: 'Global Hospital ,Infront of Aura Inn Bansi Road Basti',
     gst: '27AAAAA0000A1Z5',
-    phone: '+91 98765 43210',
-    email: 'contact@globalhospital.com',
+    phone: '+91 6394517005',
+    email: 'info@globalhospital.com',
     logo: null as string | null
   }));
 
@@ -847,7 +847,7 @@ export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }
   const [materialRates, setMaterialRates] = useState(() => storage.get(STORAGE_KEYS.MATERIAL_RATES, MOCK_MATERIAL_RATES));
   const [opdCharges, setOpdCharges] = useState(() => storage.get(STORAGE_KEYS.OPD_CHARGES, {
     reg: 200,
-    appt: 300,
+    appt: 200,
     consult: 500
   }));
   
@@ -2101,13 +2101,13 @@ export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="DOCTOR">Doctor</SelectItem>
-                      <SelectItem value="NURSE">Nurse</SelectItem>
-                      <SelectItem value="RECEPTION">Receptionist</SelectItem>
-                      <SelectItem value="PATHOLOGY">Pathology Head</SelectItem>
-                      <SelectItem value="RADIOLOGY">Radiology Head</SelectItem>
-                      <SelectItem value="ACCOUNTS">Accounts Officer</SelectItem>
-                      <SelectItem value="ADMIN">Administrator</SelectItem>
+                      <SelectItem value="DOCTOR">DOCTOR</SelectItem>
+                      <SelectItem value="NURSE">NURSE</SelectItem>
+                      <SelectItem value="RECEPTION">RECEPTION</SelectItem>
+                      <SelectItem value="PATHOLOGY">PATHOLOGY</SelectItem>
+                      <SelectItem value="RADIOLOGY">RADIOLOGY</SelectItem>
+                      <SelectItem value="ACCOUNTS">ACCOUNTS</SelectItem>
+                      <SelectItem value="ADMIN">ADMIN</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2594,11 +2594,11 @@ export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }
                         <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="GST">GST (Goods & Services Tax)</SelectItem>
-                        <SelectItem value="CGST_SGST">CGST + SGST (Dual Split)</SelectItem>
-                        <SelectItem value="VAT">VAT (Value Added Tax)</SelectItem>
-                        <SelectItem value="Exempt">Exempt / Zero Rated</SelectItem>
-                        <SelectItem value="Custom">Custom Surcharge</SelectItem>
+                        <SelectItem value="GST">GST</SelectItem>
+                        <SelectItem value="CGST_SGST">CGST + SGST</SelectItem>
+                        <SelectItem value="VAT">VAT</SelectItem>
+                        <SelectItem value="Exempt">Exempt</SelectItem>
+                        <SelectItem value="Custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

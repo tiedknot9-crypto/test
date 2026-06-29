@@ -264,11 +264,11 @@ export default function Expenses() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Utilities">Utilities (Electricity, Water)</SelectItem>
+                      <SelectItem value="Utilities">Utilities</SelectItem>
                       <SelectItem value="Medical Supplies">Medical Supplies</SelectItem>
-                      <SelectItem value="Maintenance">Maintenance & Repairs</SelectItem>
-                      <SelectItem value="Salary">Staff Salaries</SelectItem>
-                      <SelectItem value="Other">Other Operational Costs</SelectItem>
+                      <SelectItem value="Maintenance">Maintenance</SelectItem>
+                      <SelectItem value="Salary">Salary</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -340,11 +340,11 @@ export default function Expenses() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Utilities">Utilities (Electricity, Water)</SelectItem>
+                        <SelectItem value="Utilities">Utilities</SelectItem>
                         <SelectItem value="Medical Supplies">Medical Supplies</SelectItem>
-                        <SelectItem value="Maintenance">Maintenance & Repairs</SelectItem>
-                        <SelectItem value="Salary">Staff Salaries</SelectItem>
-                        <SelectItem value="Other">Other Operational Costs</SelectItem>
+                        <SelectItem value="Maintenance">Maintenance</SelectItem>
+                        <SelectItem value="Salary">Salary</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
