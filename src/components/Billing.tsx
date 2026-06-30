@@ -51,9 +51,9 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  BarChart as ReBarChart, 
-  Bar as ReBar, 
-  Cell as ReCell, 
+  BarChart, 
+  Bar, 
+  Cell, 
   PieChart, 
   Pie, 
   Legend, 
@@ -2875,7 +2875,7 @@ export default function Billing() {
                     {analyticsData.categoryData.length > 0 ? (
                       <div className="w-full h-full min-h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ReBarChart data={analyticsData.categoryData} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
+                          <BarChart data={analyticsData.categoryData} layout="vertical" margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                             <XAxis type="number" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
                             <YAxis dataKey="name" type="category" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} width={100} />
@@ -2883,12 +2883,12 @@ export default function Billing() {
                               formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Revenue Share']}
                               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
                             />
-                            <ReBar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={16}>
+                            <Bar dataKey="value" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={16}>
                               {analyticsData.categoryData.map((entry, index) => (
-                                <ReCell key={`cell-${index}`} fill={['#0e2954', '#10b981', '#8b5cf6', '#eab308', '#ec4899', '#f97316'][index % 6]} />
+                                <Cell key={`cell-${index}`} fill={['#0e2954', '#10b981', '#8b5cf6', '#eab308', '#ec4899', '#f97316'][index % 6]} />
                               ))}
-                            </ReBar>
-                          </ReBarChart>
+                            </Bar>
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
@@ -2914,7 +2914,7 @@ export default function Billing() {
                     {analyticsData.methodData.length > 0 ? (
                       <div className="w-full h-full min-h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
-                          <ReBarChart data={analyticsData.methodData} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
+                          <BarChart data={analyticsData.methodData} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                             <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
@@ -2922,12 +2922,12 @@ export default function Billing() {
                               formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Total Collected']}
                               contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
                             />
-                            <ReBar dataKey="value" radius={[4, 4, 0, 0]} barSize={26}>
+                            <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={26}>
                               {analyticsData.methodData.map((entry: any, index: number) => (
-                                <ReCell key={`cell-${index}`} fill={entry.color} />
+                                <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
-                            </ReBar>
-                          </ReBarChart>
+                            </Bar>
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     ) : (
