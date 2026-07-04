@@ -1058,22 +1058,58 @@ export function isDummyPatient(p: any): boolean {
   const id = String(p.id || p.patientId || p.patient_id || '').toLowerCase().trim();
   const name = (p.name || p.patientName || p.patient_name || '').toLowerCase().trim();
   
-  // If it is a valid UUID, it is a real database record and should NEVER be filtered out.
-  if (isUuid(id)) {
+  const exactDummyIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'];
+  const deterministicDummyIds = [
+    '00000000-0000-4000-a000-000000000001',
+    '00000000-0000-4000-a000-000000000002',
+    '00000000-0000-4000-a000-000000000003',
+    '00000000-0000-4000-a000-000000000004',
+    '00000000-0000-4000-a000-000000000005',
+    '00000000-0000-4000-a000-000000000006',
+    '00000000-0000-4000-a000-000000000007',
+    '00000000-0000-4000-a000-000000000008',
+    '00000000-0000-4000-a000-000000000009',
+    '00000000-0000-4000-a000-000000000010'
+  ];
+
+  if (exactDummyIds.includes(id) || deterministicDummyIds.includes(id)) {
+    return true;
+  }
+
+  // If it is a valid UUID but not one of our deterministic dummy UUIDs, it is a real database record.
+  if (isUuid(id) && !deterministicDummyIds.includes(id)) {
+    const isDummyName = (
+      name.includes('amit patel') ||
+      name.includes('priya singh') ||
+      name.includes('rahul sharma') ||
+      name.includes('sameer khan') ||
+      name.includes('dummy') ||
+      name.includes('test') ||
+      name.includes('mock') ||
+      name.includes('temp') ||
+      name === 'unknown patient' ||
+      name === 'unknown'
+    );
+    if (isDummyName) {
+      return true;
+    }
     return false;
   }
-  
-  // Exact IDs of seeded mock/dummy records to filter out
-  const exactDummyIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'];
 
   return (
     exactDummyIds.includes(id) ||
     id.startsWith('dummy') ||
     id.startsWith('mock') ||
-    name === 'dummy' ||
-    name === 'test' ||
-    name === 'mock' ||
-    name === 'temp'
+    name.includes('amit patel') ||
+    name.includes('priya singh') ||
+    name.includes('rahul sharma') ||
+    name.includes('sameer khan') ||
+    name.includes('dummy') ||
+    name.includes('test') ||
+    name.includes('mock') ||
+    name.includes('temp') ||
+    name === 'unknown patient' ||
+    name === 'unknown'
   );
 }
 
@@ -1180,6 +1216,7 @@ const rawSupabaseService = {
       filteredList.unshift(savedPatient);
       storage.set(STORAGE_KEYS.PATIENTS, filteredList);
       
+      broadcastDataMutation('patients', 'insert');
       return savedPatient;
     } catch (error: any) {
       console.error("[Supabase Error] createPatient failed, falling back to local storage:", error);
@@ -1252,6 +1289,7 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] deletePatient - Error:", error);
       if (error) throw error;
+      broadcastDataMutation('patients', 'delete');
       return true;
     } catch (error: any) {
       console.error("[Supabase Error] deletePatient failed:", error);
@@ -1317,6 +1355,7 @@ const rawSupabaseService = {
         console.warn('Silent failure mapping appointment to diagnostic order:', e.message);
       }
 
+      broadcastDataMutation('appointments', 'insert');
       return createdObj;
     } catch (error: any) {
       console.error('Error creating appointment:', error.message);
@@ -1334,6 +1373,7 @@ const rawSupabaseService = {
         .select();
       
       if (error) throw error;
+      broadcastDataMutation('appointments', 'update');
       return mapAppointmentFromPostgres(data[0]);
     } catch (error: any) {
       console.error('Error updating appointment:', error.message);
@@ -1351,6 +1391,7 @@ const rawSupabaseService = {
       
       console.log("[Supabase Response] deleteAppointment - Error:", error);
       if (error) throw error;
+      broadcastDataMutation('appointments', 'delete');
       return true;
     } catch (error: any) {
       console.error("[Supabase Error] deleteAppointment failed:", error);

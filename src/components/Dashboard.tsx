@@ -47,6 +47,7 @@ import { useDataSync } from '@/hooks/useDataSync';
 import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
+import { canUserViewFinancials } from '@/utils/rbac';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { 
@@ -81,9 +82,7 @@ export default function Dashboard() {
   const [users, setUsers] = useState<any[]>(() => storage.get(STORAGE_KEYS.USERS, MOCK_USERS));
 
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const showFinancials = !currentUser || 
-    ['SUPER_ADMIN', 'ADMIN', 'HOSPITAL_ADMIN', 'ACCOUNTANT', 'ACCOUNTS'].includes(currentUser.role) || 
-    currentUser.role?.toUpperCase().includes('ADMIN');
+  const showFinancials = !currentUser || canUserViewFinancials(currentUser.role);
 
   // Walk-in Quick Appointment States
   const [newApptPatientId, setNewApptPatientId] = useState('');

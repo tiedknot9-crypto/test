@@ -59,7 +59,7 @@ import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { playNotificationSound } from '@/lib/notifications';
 import { supabaseService } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
-import { canUserModifyRecord } from '@/utils/rbac';
+import { canUserEditRecord, canUserEditClinicalData, canUserManageBilling, normalizeRole, canUserModifyRecord } from '@/utils/rbac';
 import { getPrescriptionPrintHtml } from '@/lib/prescriptionPrint';
 
 export default function OPD() {
@@ -193,8 +193,9 @@ export default function OPD() {
   const [previewData, setPreviewData] = useState<{url: string, name: string} | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const isAccountant = false;
-  const isDeleteForbidden = false;
+  const userRole = currentUser?.role;
+  const isAccountant = normalizeRole(userRole) === 'ACCOUNTANT';
+  const isDeleteForbidden = !['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizeRole(userRole));
 
   // Patient Clinical History states
   const [selectedPatientVitals, setSelectedPatientVitals] = useState<any[]>([]);
@@ -1075,13 +1076,16 @@ export default function OPD() {
               }
             } else {
               // Creating a Paid OPD Consultation Invoice as backup fallback so it immediately appears in Billing logs
-              const feeToCollect = Number(apt.fee || appointmentFee || 500);
+              const baseFee = Number(apt.fee || appointmentFee || 500);
+              const discount = Number(apt.discount_amount || apt.discountAmount || 0);
+              const feeToCollect = Math.max(0, baseFee - discount);
               const invoiceData = {
                 patient_id: patientId,
                 invoice_number: `INV-OPD-${Date.now()}`,
                 status: 'Paid',
                 payment_status: 'Paid',
-                total_amount: feeToCollect,
+                total_amount: baseFee,
+                discount_amount: discount,
                 payable_amount: feeToCollect,
                 paid_amount: feeToCollect,
                 payment_method: 'Cash',
@@ -1092,8 +1096,8 @@ export default function OPD() {
                 item_name: `Consultation Fee - ${apt.doctor || apt.doctorName || 'Doctor'}`,
                 category: 'Consultation',
                 quantity: 1,
-                unit_price: feeToCollect,
-                total_price: feeToCollect
+                unit_price: baseFee,
+                total_price: baseFee
               }];
               await supabaseService.createInvoice(invoiceData, invoiceItems);
             }
@@ -1978,12 +1982,12 @@ export default function OPD() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent border-slate-100">
-                    <TableHead className="whitespace-nowrap">MRN</TableHead>
-                    <TableHead className="whitespace-nowrap">Patient Name</TableHead>
-                    <TableHead className="whitespace-nowrap">Age/Gender</TableHead>
-                    <TableHead className="whitespace-nowrap">Contact</TableHead>
-                    <TableHead className="whitespace-nowrap">Last Visit</TableHead>
-                    <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
+                    <TableHead className="w-[10%] whitespace-nowrap">MRN</TableHead>
+                    <TableHead className="w-[20%] whitespace-nowrap">Patient Name</TableHead>
+                    <TableHead className="w-[15%] whitespace-nowrap">Age/Gender</TableHead>
+                    <TableHead className="w-[15%] whitespace-nowrap">Contact</TableHead>
+                    <TableHead className="w-[15%] whitespace-nowrap">Last Visit</TableHead>
+                    <TableHead className="w-[25%] text-right whitespace-nowrap">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2115,7 +2119,7 @@ export default function OPD() {
                     <TableHead className="whitespace-nowrap">Patient</TableHead>
                     <TableHead className="whitespace-nowrap">Doctor</TableHead>
                     <TableHead className="whitespace-nowrap">Department</TableHead>
-                    <TableHead className="whitespace-nowrap">Time</TableHead>
+                    <TableHead className="whitespace-nowrap">Date & Time</TableHead>
                     <TableHead className="whitespace-nowrap">Status</TableHead>
                     <TableHead className="whitespace-nowrap">Payment</TableHead>
                     <TableHead className="whitespace-nowrap">Urgency</TableHead>
@@ -2177,9 +2181,15 @@ export default function OPD() {
                         </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        <div className="flex items-center gap-1 text-xs">
-                          <Clock className="w-3 h-3 text-muted-foreground" />
-                          {apt.appointment_time}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+                            <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                            {formatDate(apt.appointment_date || apt.date)}
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            {apt.appointment_time || '10:00 AM'}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
@@ -2188,23 +2198,36 @@ export default function OPD() {
                         </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                         <Badge 
-                           variant="outline" 
-                           className={`${
-                             apt.payment_status === 'Refunded' 
-                               ? 'bg-slate-100 text-slate-600 border-slate-200' 
-                               : apt.payment_status === 'Paid' 
-                                 ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
-                                 : 'bg-rose-50 text-rose-600 border-rose-100'
-                           } border-none`}
-                         >
-                           {apt.payment_status === 'Refunded' 
-                             ? `Refunded - ₹${apt.fee || appointmentFee}` 
-                             : (apt.payment_status || 'Pending') === 'Paid' 
-                               ? `Paid - ₹${apt.fee || appointmentFee}` 
-                               : `Pending - ₹${apt.fee || appointmentFee}`
-                           }
-                         </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge 
+                            variant="outline" 
+                            className={`${
+                              apt.payment_status === 'Refunded' 
+                                ? 'bg-slate-100 text-slate-600 border-slate-200' 
+                                : apt.payment_status === 'Paid' 
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                                  : 'bg-rose-50 text-rose-600 border-rose-100'
+                            } border-none w-fit py-0.5 px-2 text-[10px] font-bold`}
+                          >
+                            {apt.payment_status === 'Refunded' 
+                              ? 'Refunded' 
+                              : (apt.payment_status || 'Pending') === 'Paid' 
+                                ? 'Paid' 
+                                : 'Pending'
+                            }
+                          </Badge>
+                          <div className="text-[11px] space-y-0.5 text-slate-600 font-medium">
+                            <div>Base Fee: <span className="font-semibold text-slate-800">₹{apt.fee || appointmentFee}</span></div>
+                            {(apt.discount_amount || apt.discountAmount || 0) > 0 && (
+                              <>
+                                <div className="text-amber-600 font-semibold font-bold">Discount: <span>-₹{apt.discount_amount || apt.discountAmount}</span></div>
+                                <div className="border-t border-slate-100 pt-0.5 text-emerald-600 font-bold">
+                                  Net Paid: <span>₹{Math.max(0, (apt.fee || appointmentFee) - (apt.discount_amount || apt.discountAmount || 0))}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <Badge className={`${getUrgencyColor(apt.urgency as string)} border-none py-0 h-5 text-[10px]`}>
@@ -2220,7 +2243,7 @@ export default function OPD() {
                               className="h-8 text-[10px] font-black uppercase tracking-wider text-amber-600 border-amber-100 hover:bg-amber-50 px-2"
                               onClick={() => handleRefundAppointment(apt.id)}
                             >
-                              Refund ₹{apt.fee || appointmentFee}
+                              Refund ₹{Math.max(0, (apt.fee || appointmentFee) - (apt.discount_amount || apt.discountAmount || 0))}
                             </Button>
                           ) : apt.payment_status !== 'Refunded' ? (
                             <Button 
@@ -2229,7 +2252,7 @@ export default function OPD() {
                               className="h-8 text-[10px] font-black uppercase tracking-wider text-emerald-600 border-emerald-100 hover:bg-emerald-50 bg-emerald-50/50 px-2"
                               onClick={() => handlePayAppointment(apt.id)}
                             >
-                              Collect ₹{apt.fee || appointmentFee}
+                              Collect ₹{Math.max(0, (apt.fee || appointmentFee) - (apt.discount_amount || apt.discountAmount || 0))}
                             </Button>
                           ) : null}
                           <Button 

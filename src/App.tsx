@@ -64,6 +64,7 @@ import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { MOCK_PATIENTS, MOCK_USERS } from './mockData';
 import { User as UserType } from './types';
 import { supabaseService, syncOfflineDataWithSupabase } from '@/services/supabaseService';
+import { hasMenuAccess, normalizeRole } from '@/utils/rbac';
 
 const navItems = [
   { name: 'Dashboard', icon: LayoutDashboard, path: '/', roles: ['SUPER_ADMIN', 'DOCTOR', 'RECEPTIONIST', 'RECEPTION', 'FRONT_DESK', 'NURSE', 'LAB_STAFF', 'PHARMACIST', 'ACCOUNTANT', 'RADIOLOGIST'] },
@@ -83,7 +84,16 @@ const navItems = [
 
 function ProtectedRoute({ children, allowedRoles, user }: { children: ReactNode, allowedRoles: string[], user: any }) {
   if (!user) return <>{children}</>;
-  const hasAccess = true;
+  
+  const userRole = user.role;
+  const normalizedUserRole = normalizeRole(userRole);
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizedUserRole);
+  
+  const hasAccess = isAdmin || allowedRoles.some(role => {
+    const r = normalizeRole(role);
+    return r === normalizedUserRole;
+  });
+
   if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center p-8 m-8 bg-slate-50 border border-slate-200 rounded-3xl min-h-[400px] text-center max-w-xl mx-auto shadow-sm">
@@ -104,7 +114,10 @@ function ProtectedRoute({ children, allowedRoles, user }: { children: ReactNode,
 function SidebarContent({ onLogout, user, hospitalInfo }: { onLogout: () => void, user: UserType | null, hospitalInfo: any }) {
   const location = useLocation();
   
-  const filteredNavItems = navItems;
+  const filteredNavItems = navItems.filter(item => {
+    if (!user) return true;
+    return hasMenuAccess(item.path, user.role);
+  });
   
   return (
     <div className="flex flex-col h-full bg-white border-r overflow-hidden">

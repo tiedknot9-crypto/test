@@ -194,32 +194,7 @@ const generateAutoSummary = (pat: any, admissionReason: string, vitalsText: stri
   return draft;
 };
 
-const MOCK_DISCHARGE_SUMMARIES = [
-  {
-    id: 'sum-mock-1',
-    admissionId: 'adm-mock-1',
-    patient_id: 'p1', // Amit Patel
-    patientId: 'p1',
-    dischargeType: 'Routine / Improved',
-    followUpDate: '2026-06-25',
-    medications: '1. Tab. Paracetamol 500mg - 1 Tab as needed for pain/fever\n2. Tab. Pantocid 40mg - 1 Tab daily on empty stomach for 5 days\n3. Tab. Amoxicillin 500mg - 1 Tab thrice daily for 5 days',
-    clinicalSummary: 'PATIENT DISCHARGE SUMMARY\n=========================\nReason for Admission: Mild viral gastroenteritis and dehydration.\n\nClinical Parameters at Discharge:\n- BP: 120/80 mmHg, PR: 72 bpm, Temp: 98.4 F, SpO2: 99%\n\nClinical Course: Patient was managed conservatively with intravenous fluids, anti-emetics, and symptomatically. Responded very well to therapy. Tolerating oral feeds well. Hemodynamically stable, active, oriented, fit for discharge.',
-    dischargeDate: '2026-06-14T10:00:00.000Z',
-    dischargeBy: 'Dr. Rajesh Sharma'
-  },
-  {
-    id: 'sum-mock-2',
-    admissionId: 'adm-mock-2',
-    patient_id: 'p2', // Priya Singh
-    patientId: 'p2',
-    dischargeType: 'Routine / Improved',
-    followUpDate: '2026-07-01',
-    medications: '1. Tab. Atorvastatin 20mg - 1 Tab at bed time\n2. Tab. Metoprolol 25mg - 1 Tab daily in morning',
-    clinicalSummary: 'PATIENT DISCHARGE SUMMARY\n=========================\nReason for Admission: Evaluation of transient hypertension and cardiovascular screening.\n\nClinical Parameters at Discharge:\n- BP: 130/84 mmHg, PR: 74 bpm, Temp: 98.6 F, SpO2: 98%\n\nClinical Course: Extensive cardiac workup (ECG, Echo) was completed with minor hypertensive changes. Encouraged dietary modifications and sodium restriction. Medications optimized.',
-    dischargeDate: '2026-06-12T15:30:00.000Z',
-    dischargeBy: 'Dr. Anjali Mehta'
-  }
-];
+const MOCK_DISCHARGE_SUMMARIES: any[] = [];
 
 export default function IPD() {
   const navigate = useNavigate();

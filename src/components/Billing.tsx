@@ -43,6 +43,7 @@ import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { MOCK_USERS, MOCK_BILLING, MOCK_BED_RATES, MOCK_OT_RATES, MOCK_LAB_TESTS, MOCK_MATERIAL_RATES } from '@/mockData';
 import { supabaseService, isDummyPatient } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
+import { canUserViewFinancials, canUserManageBilling, normalizeRole } from '@/utils/rbac';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -203,7 +204,10 @@ export default function Billing() {
   const [recentInvoicesEndDate, setRecentInvoicesEndDate] = useState<string>('');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'analytics' | 'recent' | 'consolidated' | 'opd-collection'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'recent' | 'consolidated' | 'opd-collection'>(() => {
+    const user = storage.get(STORAGE_KEYS.SESSION_USER, null);
+    return canUserViewFinancials(user?.role) ? 'analytics' : 'recent';
+  });
   const [seeding, setSeeding] = useState(false);
 
   // Compute analytics dynamically
@@ -2395,18 +2399,30 @@ export default function Billing() {
                     )}
 
                     {/* Financial Summary Card */}
-                    <div className="gap-2 p-3 bg-slate-55 border border-slate-200 rounded-xl text-center grid grid-cols-3">
-                      <div className="flex flex-col p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">Total Bill</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(total)}</span>
+                    <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="flex flex-col p-2 bg-white rounded-lg border border-slate-100 shadow-sm">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">Gross Bill</span>
+                          <span className="text-xs font-bold text-slate-800 mt-0.5">{formatCurrency(paymentTargetBill.total_amount || paymentTargetBill.totalAmount || total)}</span>
+                        </div>
+                        <div className="flex flex-col p-2 bg-amber-50/50 rounded-lg border border-amber-150/50">
+                          <span className="text-[9px] font-bold text-amber-600 uppercase">Discount</span>
+                          <span className="text-xs font-bold text-amber-700 mt-0.5">-{formatCurrency(paymentTargetBill.discount_amount || paymentTargetBill.discount || 0)}</span>
+                        </div>
+                        <div className="flex flex-col p-2 bg-blue-50/50 rounded-lg border border-blue-150/50">
+                          <span className="text-[9px] font-bold text-blue-600 uppercase">Net Payable</span>
+                          <span className="text-xs font-extrabold text-blue-700 mt-0.5">{formatCurrency(total)}</span>
+                        </div>
                       </div>
-                      <div className="flex flex-col p-2 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
-                        <span className="text-[9px] font-bold text-emerald-600/80 uppercase">Paid So Far</span>
-                        <span className="text-sm font-bold text-emerald-700 mt-1">{formatCurrency(paid)}</span>
-                      </div>
-                      <div className="flex flex-col p-2 bg-amber-50/50 rounded-lg border border-amber-100/50">
-                        <span className="text-[9px] font-bold text-amber-600/80 uppercase">Remaining</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1">{formatCurrency(remaining)}</span>
+                      <div className="grid grid-cols-2 gap-2 text-center">
+                        <div className="flex flex-col p-1.5 bg-emerald-50/40 rounded-lg border border-emerald-100/50">
+                          <span className="text-[9px] font-semibold text-emerald-600/80 uppercase">Paid So Far</span>
+                          <span className="text-xs font-bold text-emerald-700">{formatCurrency(paid)}</span>
+                        </div>
+                        <div className="flex flex-col p-1.5 bg-rose-50/45 rounded-lg border border-rose-100/50">
+                          <span className="text-[9px] font-semibold text-rose-600/80 uppercase">Remaining Balance</span>
+                          <span className="text-xs font-bold text-rose-700">{formatCurrency(remaining)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -2627,48 +2643,52 @@ export default function Billing() {
             </DialogContent>
           </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-none shadow-sm bg-medical-blue/5">
-          <CardContent className="p-6">
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Total Hospital Revenue</p>
-            <h3 className="text-2xl font-bold text-medical-blue">{formatCurrency(totalHospitalRevenue)}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1">Aggregated from all departments</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Main Office Collection</p>
-            <h3 className="text-2xl font-bold text-emerald-600">{formatCurrency(mainOfficeCollection)}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1">OPD, IPD, OT Services</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Pharmacy Revenue</p>
-            <h3 className="text-2xl font-bold text-teal-600">{formatCurrency(pharmacyRevenue)}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1">Collected at Pharmacy POS</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-6">
-            <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Lab & Radiology</p>
-            <h3 className="text-2xl font-bold text-purple-600">{formatCurrency(labRevenue)}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1">Collected at Lab Counter</p>
-          </CardContent>
-        </Card>
-      </div>
+      {canUserViewFinancials(currentUser?.role) && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in">
+          <Card className="border-none shadow-sm bg-medical-blue/5">
+            <CardContent className="p-6">
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Total Hospital Revenue</p>
+              <h3 className="text-2xl font-bold text-medical-blue">{formatCurrency(totalHospitalRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Aggregated from all departments</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Main Office Collection</p>
+              <h3 className="text-2xl font-bold text-emerald-600">{formatCurrency(mainOfficeCollection)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">OPD, IPD, OT Services</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Pharmacy Revenue</p>
+              <h3 className="text-2xl font-bold text-teal-600">{formatCurrency(pharmacyRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Collected at Pharmacy POS</p>
+            </CardContent>
+          </Card>
+          <Card className="border-none shadow-sm">
+            <CardContent className="p-6">
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider mb-1">Lab & Radiology</p>
+              <h3 className="text-2xl font-bold text-purple-600">{formatCurrency(labRevenue)}</h3>
+              <p className="text-[10px] text-muted-foreground mt-1">Collected at Lab Counter</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex flex-wrap border-b border-slate-200 mt-6 select-none bg-white p-1 rounded-t-xl gap-1">
-        <button
-          className={`px-6 py-2.5 text-xs font-bold border-b-2 transition-all ${
-            activeTab === 'analytics' 
-              ? 'border-medical-blue text-medical-blue font-black bg-blue-50/40 rounded-t-lg' 
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-          onClick={() => setActiveTab('analytics')}
-        >
-          📊 Accounts Overview & Charts
-        </button>
+        {canUserViewFinancials(currentUser?.role) && (
+          <button
+            className={`px-6 py-2.5 text-xs font-bold border-b-2 transition-all ${
+              activeTab === 'analytics' 
+                ? 'border-medical-blue text-medical-blue font-black bg-blue-50/40 rounded-t-lg' 
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+            onClick={() => setActiveTab('analytics')}
+          >
+            📊 Accounts Overview & Charts
+          </button>
+        )}
         <button
           className={`px-6 py-2.5 text-xs font-bold border-b-2 transition-all ${
             activeTab === 'recent' 
@@ -3138,7 +3158,7 @@ export default function Billing() {
                             <div className="flex flex-col">
                               <span className="text-slate-900 font-bold">{formatCurrency(bill.payable_amount ?? bill.payableAmount ?? bill.total_amount ?? bill.totalAmount ?? 0)}</span>
                               <span className="text-[10px] text-emerald-600 font-bold">Paid: {formatCurrency(bill.paid_amount ?? bill.paidAmount ?? 0)}</span>
-                              {(bill.discount_amount || bill.discountAmount || 0) > 0 && <span className="text-[9px] text-rose-500 font-bold">-{formatCurrency(bill.discount_amount || bill.discountAmount)} Disc.</span>}
+                              <span className="text-[10px] text-rose-500 font-bold">Discount: {formatCurrency(bill.discount_amount ?? bill.discountAmount ?? bill.discount ?? 0)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="whitespace-nowrap">

@@ -49,6 +49,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { canUserEditRecord } from '@/utils/rbac';
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -92,8 +93,7 @@ export default function Expenses() {
   };
 
   const canModify = (record: any) => {
-    if (currentUser?.role === 'SUPER_ADMIN') return true;
-    return !isAddedByAdmin(record);
+    return canUserEditRecord(record, currentUser);
   };
 
   const fetchExpenses = async () => {
