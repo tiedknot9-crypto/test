@@ -108,8 +108,42 @@ export default function Billing() {
       const enrichedInvoices = invoicesData.map((inv: any) => {
         const pId = inv.patient_id || inv.patientId;
         const matchedPatient = patientsData ? patientsData.find((p: any) => p.id === pId) : null;
+        
+        let discountAmt = inv.discount_amount ?? inv.discountAmount ?? inv.discount ?? 0;
+        let payableAmt = inv.payable_amount ?? inv.payableAmount ?? inv.total_amount ?? inv.totalAmount ?? 0;
+        let paidAmt = inv.paid_amount ?? inv.paidAmount ?? 0;
+        const totalAmt = inv.total_amount ?? inv.totalAmount ?? 0;
+
+        if (inv.type === 'OPD' && appointmentsData && discountAmt === 0) {
+          const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
+          const matchingApt = appointmentsData.find((apt: any) => {
+            const aptPid = apt.patient_id || apt.patientId;
+            const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
+            const aptDisc = Number(apt.discount_amount || apt.discountAmount || 0);
+            return aptPid === pId && aptDateStr === invDateStr && aptDisc > 0;
+          });
+
+          if (matchingApt) {
+            const aptDisc = Number(matchingApt.discount_amount || matchingApt.discountAmount || 0);
+            discountAmt = aptDisc;
+            payableAmt = Math.max(0, totalAmt - aptDisc);
+            paidAmt = Math.max(0, totalAmt - aptDisc);
+
+            // Trigger a background update in the database to heal the invoice permanently
+            supabaseService.updateInvoice(inv.id, {
+              ...inv,
+              discount_amount: discountAmt,
+              payable_amount: payableAmt,
+              paid_amount: paidAmt
+            }).catch(err => console.warn('Silent failure healing invoice discount:', err));
+          }
+        }
+
         return {
           ...inv,
+          discount_amount: discountAmt,
+          payable_amount: payableAmt,
+          paid_amount: paidAmt,
           patients: inv.patients || (matchedPatient ? {
             id: matchedPatient.id,
             name: matchedPatient.name,

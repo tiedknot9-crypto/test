@@ -917,11 +917,14 @@ export default function OPD() {
 
       if (selectedInvoiceItems.length > 0) {
         // Create Invoice for selected Consultation/Appointment Fees
+        const discountVal = Number(newAppointment.discountAmount || 0);
         const invoiceData = {
           patient_id: newAppointment.patientId,
           invoice_number: `INV-OPD-${Date.now()}`,
           status: 'Unpaid',
           total_amount: calculatedTotal,
+          discount_amount: discountVal,
+          payable_amount: Math.max(0, calculatedTotal - discountVal),
           paid_amount: 0,
           payment_method: 'Cash',
           type: 'OPD',
@@ -1068,10 +1071,20 @@ export default function OPD() {
 
             if (pendingOPDInvoices.length > 0) {
               for (const inv of pendingOPDInvoices) {
-                const totalToPay = Number(inv.payable_amount ?? inv.total_amount ?? 0);
+                const discountVal = Number(inv.discount_amount ?? inv.discountAmount ?? apt.discount_amount ?? apt.discountAmount ?? 0);
+                const totalAmt = Number(inv.total_amount ?? inv.totalAmount ?? apt.fee ?? 0);
+                const payableAmt = Math.max(0, totalAmt - discountVal);
+                
                 await supabaseService.updateInvoice(
                   inv.id, 
-                  { ...inv, status: 'Paid', payment_status: 'Paid', paid_amount: totalToPay }
+                  { 
+                    ...inv, 
+                    status: 'Paid', 
+                    payment_status: 'Paid', 
+                    discount_amount: discountVal,
+                    payable_amount: payableAmt,
+                    paid_amount: payableAmt 
+                  }
                 );
               }
             } else {
