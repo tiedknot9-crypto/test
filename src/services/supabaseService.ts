@@ -1552,22 +1552,43 @@ const rawSupabaseService = {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      if (data) {
-        return data.map((inv: any) => {
-          const mappedInv = mapInvoiceFromPostgres(inv);
-          if (inv.invoice_items) {
-            mappedInv.invoice_items = inv.invoice_items.map(mapInvoiceItemFromPostgres);
-          }
-          return mappedInv;
-        }).filter((inv: any) => {
-          const pat = inv.patients || { id: inv.patient_id || inv.patientId, name: inv.patient_name || inv.patientName };
-          return !isDummyPatient(pat);
+      
+      const dbInvoices = data ? data.map((inv: any) => {
+        const mappedInv = mapInvoiceFromPostgres(inv);
+        if (inv.invoice_items) {
+          mappedInv.invoice_items = inv.invoice_items.map(mapInvoiceItemFromPostgres);
+        }
+        return mappedInv;
+      }).filter((inv: any) => {
+        const pat = inv.patients || { id: inv.patient_id || inv.patientId, name: inv.patient_name || inv.patientName };
+        return !isDummyPatient(pat);
+      }) : [];
+
+      const localInvoices = storage.get(STORAGE_KEYS.BILLING, MOCK_BILLING) || [];
+      
+      // Merge: any local/mock invoice that is not present in DB
+      const offlineInvoices = localInvoices.filter((li: any) => {
+        if (!li) return false;
+        const liId = String(li.id || '');
+        const liNum = String(li.invoice_number || li.invoiceNumber || '');
+        return !dbInvoices.some((di: any) => {
+          if (!di) return false;
+          const diId = String(di.id || '');
+          const diNum = String(di.invoice_number || di.invoiceNumber || '');
+          return diId === liId || (liNum && diNum === liNum);
         });
-      }
-      return data;
+      });
+
+      const merged = [...offlineInvoices.map(mapInvoiceFromPostgres), ...dbInvoices];
+      storage.set(STORAGE_KEYS.BILLING, merged);
+      return merged;
     } catch (error: any) {
-      console.error('Error fetching invoices:', error.message);
-      return null;
+      console.warn('Error fetching invoices, falling back to local storage:', error.message);
+      const cached = storage.get(STORAGE_KEYS.BILLING, MOCK_BILLING) || [];
+      return cached.map(mapInvoiceFromPostgres).filter((inv: any) => {
+        const pat = inv.patients || { id: inv.patient_id || inv.patientId, name: inv.patient_name || inv.patientName };
+        return !isDummyPatient(pat);
+      });
     }
   },
 

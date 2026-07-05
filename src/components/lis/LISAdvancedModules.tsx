@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDataSync } from '@/hooks/useDataSync';
 import { 
   Users, 
   MapPin, 
@@ -66,44 +67,47 @@ export default function LISAdvancedModules({ readOnly }: { readOnly?: boolean })
   };
 
   // 1. Referral Doctor Commissions
-  const [doctors, setDoctors] = useState<DoctorCommission[]>([
-    { doctorId: 'DOC-MEERA', doctorName: 'Dr. Meera Vasudevan (MD)', specialization: 'Gynaecology & Endocrinology', totalReferralsCount: 42, totalReferredBillAmount: 58000, commissionPercentage: 20, unpaidAccruedAmount: 11600 },
-    { doctorId: 'DOC-ARUN', doctorName: 'Dr. Arun Singhal (MS)', specialization: 'Internal Medicine', totalReferralsCount: 29, totalReferredBillAmount: 41200, commissionPercentage: 15, unpaidAccruedAmount: 6180 },
-    { doctorId: 'DOC-KAPOOR', doctorName: 'Dr. S. K. Kapoor (MD)', specialization: 'Nephrology & Urology', totalReferralsCount: 18, totalReferredBillAmount: 32000, commissionPercentage: 18, unpaidAccruedAmount: 5760 }
-  ]);
+  const [doctors, setDoctors] = useState<DoctorCommission[]>(() => 
+    storage.get('hms_lis_doctors', [])
+  );
 
   // 2. B2B Franchise Centers
-  const [franchises, setFranchises] = useState<FranchiseCenter[]>([
-    { centerId: 'FRAN-SOUTH', centerName: 'Global Labs - South Extension Node', ownerName: 'Rajeev Singhania', creditLimitEscrow: 50000, outstandingBalance: 12400, sampleCountForwarded: 184, agreementStatus: 'Active' },
-    { centerId: 'FRAN-NOHAR', centerName: 'Global Labs - Nohar Referral Desk', ownerName: 'Dr. Vikas Swami', creditLimitEscrow: 25000, outstandingBalance: 4200, sampleCountForwarded: 61, agreementStatus: 'Active' },
-    { centerId: 'FRAN-CITY', centerName: 'Metro Diagnostic - Franchise Unit', ownerName: 'Amar Preet Singh', creditLimitEscrow: 75000, outstandingBalance: 32900, sampleCountForwarded: 240, agreementStatus: 'Suspended' }
-  ]);
+  const [franchises, setFranchises] = useState<FranchiseCenter[]>(() => 
+    storage.get('hms_lis_franchises', [])
+  );
 
   // 3. Home Sample collection slots
-  const [bookings, setBookings] = useState<HomeCollectionBooking[]>([
-    { bookingId: 'HB-9021', patientName: 'Rajesh Kumar Jha', phone: '9928102910', scheduledAddress: 'Block 4C, Rosewood Apts, Sector 62', testRequested: 'Lipid Profile & Glucose F/PP', assignedPhlebotomist: 'Vikram Singh', collectionSlotTime: '07-Jun-2026 07:30 AM', transitTrackingStatus: 'In-Transit', transitTemperatureCelsius: 5.4 },
-    { bookingId: 'HB-9022', patientName: 'Suman Lata', phone: '9873019283', scheduledAddress: 'Villa 12, Spring Meadows, Extension 2', testRequested: 'Thyroid Panel & Vit D-B12', assignedPhlebotomist: 'Manish Kumar', collectionSlotTime: '07-Jun-2026 08:30 AM', transitTrackingStatus: 'Completed', transitTemperatureCelsius: 4.8 },
-    { bookingId: 'HB-9023', patientName: 'Om Prakash Gauri', phone: '9019283011', scheduledAddress: 'Flat 102, Shivalik Residency, Model Town', testRequested: 'Kidney Function Test & Electrolytes', assignedPhlebotomist: 'Vikram Singh', collectionSlotTime: '07-Jun-2026 09:12 AM', transitTrackingStatus: 'Dispatched', transitTemperatureCelsius: 6.1 }
-  ]);
+  const [bookings, setBookings] = useState<HomeCollectionBooking[]>(() => 
+    storage.get('hms_lis_bookings', [])
+  );
+
+  // Enable reactive cross-tab, cross-device synchronization of LIS advanced module stats
+  useDataSync(() => {
+    setDoctors(storage.get('hms_lis_doctors', []));
+    setFranchises(storage.get('hms_lis_franchises', []));
+    setBookings(storage.get('hms_lis_bookings', []));
+  });
 
   // 4. Lab Compliance audit list
   const [complianceChecks, setComplianceChecks] = useState([
-    { id: 1, topic: 'Daily QC Control Runs', status: 'Completed', detail: 'Sysmex Hematology Controls Lot #XM901 Calibration successfully registered at 06:15 AM.' },
-    { id: 2, topic: 'External Quality Assessment (EQAS)', status: 'Active', detail: 'AIIMS Inter-lab Proficiency sample results compared & sent. Accuracy: 99.4%' },
-    { id: 3, topic: 'Cold Chain Transit Temperature Logs', status: 'Good', detail: 'Refrigerator & mobile transport vaccine coolers currently logging 4.2°C to 5.8°C.' },
-    { id: 4, topic: 'Critical Alert Callback Audits', status: 'Completed', detail: 'All panic hyperkalemia/profound thrombocytopenia alerts phoned to clinicians under 15 min.' }
+    { id: 1, topic: 'Daily QC Control Runs', status: 'Completed', detail: 'Sysmex Hematology Controls Calibration successfully registered at 06:15 AM.' },
+    { id: 2, topic: 'External Quality Assessment (EQAS)', status: 'Active', detail: 'Proficiency sample results compared & sent. Accuracy: 99.4%' },
+    { id: 3, topic: 'Cold Chain Transit Temperature Logs', status: 'Good', detail: 'Refrigerator & mobile transport vaccine coolers currently logging within safe bounds.' },
+    { id: 4, topic: 'Critical Alert Callback Audits', status: 'Completed', detail: 'All panic alert results phoned to clinicians under 15 min.' }
   ]);
 
   // Remit commissions handler
   const handleRemitDoctorFees = (docId: string) => {
     if (!checkPermission()) return;
-    setDoctors(doctors.map(d => {
+    const updated = doctors.map(d => {
       if (d.doctorId === docId) {
         toast.success(`Remittance cleared! Transferred ₹${d.unpaidAccruedAmount} to ${d.doctorName}`);
         return { ...d, unpaidAccruedAmount: 0 };
       }
       return d;
-    }));
+    });
+    setDoctors(updated);
+    storage.set('hms_lis_doctors', updated);
   };
 
   // Add sample collection temperature simulated alert
@@ -141,27 +145,35 @@ export default function LISAdvancedModules({ readOnly }: { readOnly?: boolean })
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {doctors.map(doc => (
-                  <TableRow key={doc.doctorId} className="hover:bg-slate-50/30 text-xs border-slate-100">
-                    <TableCell className="py-2.5 font-bold text-slate-800">
-                      {doc.doctorName}
-                      <span className="block text-[9px] font-medium text-muted-foreground">{doc.specialization}</span>
-                    </TableCell>
-                    <TableCell className="py-2.5 text-center font-bold text-slate-700">{doc.totalReferralsCount}</TableCell>
-                    <TableCell className="py-2.5 text-center font-semibold text-slate-500">{doc.commissionPercentage}%</TableCell>
-                    <TableCell className="py-2.5 font-bold text-right text-slate-900">₹{doc.unpaidAccruedAmount}</TableCell>
-                    <TableCell className="py-2.5 text-right">
-                      <Button 
-                        size="sm" 
-                        disabled={doc.unpaidAccruedAmount === 0}
-                        className="h-7 text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-md"
-                        onClick={() => handleRemitDoctorFees(doc.doctorId)}
-                      >
-                        Payout Split
-                      </Button>
+                {doctors.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-slate-400 font-semibold text-xs">
+                      No active referral commissions recorded.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  doctors.map(doc => (
+                    <TableRow key={doc.doctorId} className="hover:bg-slate-50/30 text-xs border-slate-100">
+                      <TableCell className="py-2.5 font-bold text-slate-800">
+                        {doc.doctorName}
+                        <span className="block text-[9px] font-medium text-muted-foreground">{doc.specialization}</span>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-center font-bold text-slate-700">{doc.totalReferralsCount}</TableCell>
+                      <TableCell className="py-2.5 text-center font-semibold text-slate-500">{doc.commissionPercentage}%</TableCell>
+                      <TableCell className="py-2.5 font-bold text-right text-slate-900">₹{doc.unpaidAccruedAmount}</TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <Button 
+                          size="sm" 
+                          disabled={doc.unpaidAccruedAmount === 0}
+                          className="h-7 text-[10px] font-bold bg-indigo-600 text-white hover:bg-indigo-700 rounded-md"
+                          onClick={() => handleRemitDoctorFees(doc.doctorId)}
+                        >
+                          Payout Split
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -187,26 +199,34 @@ export default function LISAdvancedModules({ readOnly }: { readOnly?: boolean })
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {franchises.map(fran => (
-                  <TableRow key={fran.centerId} className="hover:bg-slate-50/30 text-xs border-slate-100">
-                    <TableCell className="py-2.5 font-bold text-slate-800">
-                      {fran.centerName}
-                      <span className="block text-[9px] font-medium text-muted-foreground">Admin: {fran.ownerName}</span>
-                    </TableCell>
-                    <TableCell className="py-2.5 text-center font-bold text-slate-600">₹{fran.creditLimitEscrow}</TableCell>
-                    <TableCell className={`py-2.5 text-center font-extrabold ${fran.outstandingBalance > 30000 ? 'text-red-650' : 'text-slate-800'}`}>
-                      ₹{fran.outstandingBalance}
-                    </TableCell>
-                    <TableCell className="py-2.5 text-center font-semibold text-slate-500">{fran.sampleCountForwarded}</TableCell>
-                    <TableCell className="py-2.5 text-right">
-                      {fran.agreementStatus === 'Active' ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 text-[9px] shrink-0 border-none font-bold">Licensed</Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[9px] bg-red-100/30 border-red-200 text-red-600 font-bold">Overlimit Limit</Badge>
-                      )}
+                {franchises.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-slate-400 font-semibold text-xs">
+                      No outer franchise collection centers configured.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  franchises.map(fran => (
+                    <TableRow key={fran.centerId} className="hover:bg-slate-50/30 text-xs border-slate-100">
+                      <TableCell className="py-2.5 font-bold text-slate-800">
+                        {fran.centerName}
+                        <span className="block text-[9px] font-medium text-muted-foreground">Admin: {fran.ownerName}</span>
+                      </TableCell>
+                      <TableCell className="py-2.5 text-center font-bold text-slate-600">₹{fran.creditLimitEscrow}</TableCell>
+                      <TableCell className={`py-2.5 text-center font-extrabold ${fran.outstandingBalance > 30000 ? 'text-red-650' : 'text-slate-800'}`}>
+                        ₹{fran.outstandingBalance}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-center font-semibold text-slate-500">{fran.sampleCountForwarded}</TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        {fran.agreementStatus === 'Active' ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 text-[9px] shrink-0 border-none font-bold">Licensed</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] bg-red-100/30 border-red-200 text-red-600 font-bold">Overlimit Limit</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -236,35 +256,43 @@ export default function LISAdvancedModules({ readOnly }: { readOnly?: boolean })
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bookings.map(book => (
-                <TableRow key={book.bookingId} className="hover:bg-slate-50/30 text-xs border-slate-100">
-                  <TableCell className="py-3 font-bold text-slate-800">
-                    {book.patientName}
-                    <span className="block text-[8px] font-mono font-bold text-indigo-600">{book.bookingId}</span>
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <p className="font-semibold text-slate-700 leading-none">{book.scheduledAddress}</p>
-                    <span className="text-[10px] text-muted-foreground">Ph: {book.phone}</span>
-                  </TableCell>
-                  <TableCell className="py-3 font-semibold text-slate-600 text-center">{book.testRequested}</TableCell>
-                  <TableCell className="py-3 font-bold text-slate-800 text-center">{book.assignedPhlebotomist}</TableCell>
-                  <TableCell className="py-3 text-center">
-                    <Badge variant="outline" className={`font-mono font-black text-[10px] px-2 py-0.5 rounded-full flex items-center justify-center gap-1 w-20 mx-auto ${triggerTemperatureWarningCheck(book.transitTemperatureCelsius)}`}>
-                      <Thermometer className="w-3.5 h-3.5" />
-                      {book.transitTemperatureCelsius}°C
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-3 text-right">
-                    {book.transitTrackingStatus === 'Completed' ? (
-                      <Badge className="bg-emerald-100 text-emerald-800 font-bold border-none text-[9px] py-0.5">Recv at Lab</Badge>
-                    ) : book.transitTrackingStatus === 'In-Transit' ? (
-                      <Badge className="bg-amber-100 text-amber-800 font-bold border-none text-[9px] py-0.5 animate-pulse">Cold Box Transit</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[9px] text-slate-400 border-slate-200">Dispatched</Badge>
-                    )}
+              {bookings.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-slate-400 font-semibold text-xs">
+                    No home sample collection bookings for today.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                bookings.map(book => (
+                  <TableRow key={book.bookingId} className="hover:bg-slate-50/30 text-xs border-slate-100">
+                    <TableCell className="py-3 font-bold text-slate-800">
+                      {book.patientName}
+                      <span className="block text-[8px] font-mono font-bold text-indigo-600">{book.bookingId}</span>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <p className="font-semibold text-slate-700 leading-none">{book.scheduledAddress}</p>
+                      <span className="text-[10px] text-muted-foreground">Ph: {book.phone}</span>
+                    </TableCell>
+                    <TableCell className="py-3 font-semibold text-slate-600 text-center">{book.testRequested}</TableCell>
+                    <TableCell className="py-3 font-bold text-slate-800 text-center">{book.assignedPhlebotomist}</TableCell>
+                    <TableCell className="py-3 text-center">
+                      <Badge variant="outline" className={`font-mono font-black text-[10px] px-2 py-0.5 rounded-full flex items-center justify-center gap-1 w-20 mx-auto ${triggerTemperatureWarningCheck(book.transitTemperatureCelsius)}`}>
+                        <Thermometer className="w-3.5 h-3.5" />
+                        {book.transitTemperatureCelsius}°C
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-3 text-right">
+                      {book.transitTrackingStatus === 'Completed' ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 font-bold border-none text-[9px] py-0.5">Recv at Lab</Badge>
+                      ) : book.transitTrackingStatus === 'In-Transit' ? (
+                        <Badge className="bg-amber-100 text-amber-800 font-bold border-none text-[9px] py-0.5 animate-pulse">Cold Box Transit</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[9px] text-slate-400 border-slate-200">Dispatched</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

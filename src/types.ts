@@ -80,10 +80,11 @@ export interface BillingRecord {
   id: string;
   patientId: string;
   date: string;
+  type?: string;
   items: {
     description: string;
     amount: number;
-    category: 'OPD' | 'IPD' | 'Lab' | 'Radiology' | 'Pharmacy' | 'Other';
+    category: 'OPD' | 'IPD' | 'Lab' | 'Radiology' | 'Pharmacy' | 'Other' | 'PHARMACY' | 'path' | 'radio';
   }[];
   totalAmount: number;
   discount?: number;

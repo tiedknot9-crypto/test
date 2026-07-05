@@ -665,6 +665,138 @@ export default function Dashboard() {
     })).filter(d => d.value > 0);
   }, [filteredBilling]);
 
+  // Derive Department collections for operational report
+  const departmentCollections = useMemo(() => {
+    let opdCollected = 0;
+    let ipdCollected = 0;
+    let pharmacyCollected = 0;
+    let labCollected = 0;
+    let otCollected = 0;
+
+    filteredBilling.forEach(b => {
+      const typeUpper = (b.type || b.category || '').toUpperCase();
+      const items = b.invoice_items || b.items || [];
+      const billPaid = Number(b.paid_amount ?? b.paidAmount ?? 0);
+      const billTotal = Number(b.total_amount ?? b.totalAmount ?? 0) || 1;
+      const paymentRatio = billPaid / billTotal;
+
+      if (items.length > 0) {
+        items.forEach((item: any) => {
+          const cat = (item.category || '').toUpperCase();
+          const price = Number(item.total_price ?? item.amount ?? 0) * paymentRatio;
+
+          if (cat === 'PHARMACY') {
+            pharmacyCollected += price;
+          } else if (['PATHOLOGY', 'RADIOLOGY', 'LAB', 'PATH', 'RADIO'].includes(cat)) {
+            labCollected += price;
+          } else if (['OPD', 'CONSULTATION', 'OPD/CONSULTANCY'].includes(cat)) {
+            opdCollected += price;
+          } else if (['IPD', 'ROOM', 'WARD', 'NURSING'].includes(cat)) {
+            ipdCollected += price;
+          } else if (['OT', 'SURGERY', 'ANESTHESIA'].includes(cat)) {
+            otCollected += price;
+          } else {
+            if (typeUpper === 'OPD') opdCollected += price;
+            else if (typeUpper === 'IPD') ipdCollected += price;
+            else if (typeUpper === 'PHARMACY') pharmacyCollected += price;
+            else if (typeUpper === 'LAB' || typeUpper === 'DIAGNOSTICS' || typeUpper === 'LAB/RAD') labCollected += price;
+            else if (typeUpper === 'OT') otCollected += price;
+            else opdCollected += price;
+          }
+        });
+      } else {
+        if (typeUpper === 'OPD') opdCollected += billPaid;
+        else if (typeUpper === 'IPD') ipdCollected += billPaid;
+        else if (typeUpper === 'PHARMACY') pharmacyCollected += billPaid;
+        else if (typeUpper === 'LAB' || typeUpper === 'DIAGNOSTICS' || typeUpper === 'LAB/RAD') labCollected += billPaid;
+        else if (typeUpper === 'OT') otCollected += billPaid;
+        else opdCollected += billPaid;
+      }
+    });
+
+    const opdApts = appointments.filter((apt: any) => {
+      const dateVal = apt.appointment_date || apt.appointmentDate || apt.created_at;
+      if (!dateVal) return false;
+      const aptDate = new Date(dateVal);
+      if (isNaN(aptDate.getTime())) return false;
+      
+      const now = new Date();
+      if (timeFrame === 'today') {
+        const today = new Date();
+        return aptDate.getDate() === today.getDate() && 
+               aptDate.getMonth() === today.getMonth() && 
+               aptDate.getFullYear() === today.getFullYear();
+      }
+      if (timeFrame === 'month') {
+        return aptDate.getMonth() === now.getMonth() && aptDate.getFullYear() === now.getFullYear();
+      }
+      if (timeFrame === 'quarter') {
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const aptQuarter = Math.floor(aptDate.getMonth() / 3);
+        return currentQuarter === aptQuarter && aptDate.getFullYear() === now.getFullYear();
+      }
+      if (timeFrame === 'year') {
+        return aptDate.getFullYear() === now.getFullYear();
+      }
+      if (timeFrame === 'custom' && dateRange.start && dateRange.end) {
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        return aptDate >= start && aptDate <= end;
+      }
+      return true;
+    }).filter((apt: any) => (!apt.type || apt.type === 'OPD') && (apt.payment_status === 'Paid' || apt.paymentStatus === 'Paid'));
+
+    const opdConsultationEarnings = opdApts.reduce((sum, apt) => {
+      const docName = apt.doctor || apt.doctorName || 'General Consultation';
+      let feeVal = Number(apt.fee);
+      if (!feeVal || isNaN(feeVal)) {
+        const foundDoc = users.find((u: any) => u.name === docName);
+        feeVal = foundDoc?.consultationFee ? Number(foundDoc.consultationFee) : 500;
+      }
+      const discountVal = Number(apt.discount_amount || apt.discountAmount || 0);
+      const finalFee = Math.max(0, feeVal - discountVal);
+      return sum + finalFee;
+    }, 0);
+
+    let billingOpdVal = 0;
+    filteredBilling.forEach(b => {
+      const typeUpper = (b.type || b.category || '').toUpperCase();
+      const items = b.invoice_items || b.items || [];
+      const billPaid = Number(b.paid_amount ?? b.paidAmount ?? 0);
+      const billTotal = Number(b.total_amount ?? b.totalAmount ?? 0) || 1;
+      const paymentRatio = billPaid / billTotal;
+
+      const hasOpdItem = items.some((i: any) => {
+        const cat = (i.category || '').toUpperCase();
+        return ['OPD', 'CONSULTATION', 'OPD/CONSULTANCY'].includes(cat) || (i.description || '').toUpperCase().includes('OPD');
+      });
+
+      if (hasOpdItem || typeUpper === 'OPD' || typeUpper === 'CONSULTATION') {
+        const opdItemsValue = items.filter((i: any) => {
+          const cat = (i.category || '').toUpperCase();
+          return ['OPD', 'CONSULTATION', 'OPD/CONSULTANCY'].includes(cat) || (i.description || '').toUpperCase().includes('OPD');
+        }).reduce((sum, item) => sum + Number(item.total_price ?? item.amount ?? 0), 0);
+
+        if (opdItemsValue > 0) {
+          billingOpdVal += opdItemsValue * paymentRatio;
+        } else {
+          billingOpdVal += billPaid;
+        }
+      }
+    });
+
+    const addtlOpd = Math.max(0, opdConsultationEarnings - billingOpdVal);
+    opdCollected += addtlOpd;
+
+    return {
+      OPD: opdCollected,
+      IPD: ipdCollected,
+      Pharmacy: pharmacyCollected,
+      Lab: labCollected,
+      OT: otCollected
+    };
+  }, [filteredBilling, appointments, users, timeFrame, dateRange]);
+
   if (isLoading) {
     return (
       <div className="h-full w-full flex items-center justify-center">
@@ -951,35 +1083,67 @@ export default function Dashboard() {
         <CardContent className="p-0">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 divide-x divide-slate-50">
             {[
-              { dept: 'OPD', count: filteredBilling.filter(b => {
-                const items = b.invoice_items || b.items || [];
-                return (b.type || b.category || '').toUpperCase() === 'OPD' || items.some((i: any) => ['OPD', 'CONSULTATION', 'OPD/CONSULTANCY'].includes((i.category || '').toUpperCase()));
-              }).length, label: 'OPD Visits', color: 'bg-blue-500' },
-              { dept: 'IPD', count: filteredBilling.filter(b => {
-                const items = b.invoice_items || b.items || [];
-                return (b.type || b.category || '').toUpperCase() === 'IPD' || items.some((i: any) => (i.category || '').toUpperCase() === 'IPD');
-              }).length, label: 'IPD Days', color: 'bg-indigo-500' },
-              { dept: 'Pharmacy', count: filteredBilling.filter(b => {
-                const items = b.invoice_items || b.items || [];
-                return (b.type || b.category || '').toUpperCase() === 'PHARMACY' || items.some((i: any) => (i.category || '').toUpperCase() === 'PHARMACY');
-              }).length, label: 'RX Sold', color: 'bg-teal-500' },
-              { dept: 'Lab/Rad', count: filteredBilling.filter(b => {
-                const items = b.invoice_items || b.items || [];
-                return (b.type || b.category || '').toUpperCase() === 'LAB' || items.some((i: any) => ['PATHOLOGY', 'RADIOLOGY', 'LAB', 'PATH', 'RADIO'].includes((i.category || '').toUpperCase()));
-              }).length, label: 'Test Reports', color: 'bg-purple-500' },
-              { dept: 'OT', count: filteredBilling.filter(b => {
-                const items = b.invoice_items || b.items || [];
-                return (b.type || b.category || '').toUpperCase() === 'OT' || items.some((i: any) => (i.category || '').toUpperCase() === 'OT');
-              }).length, label: 'OT Records', color: 'bg-rose-500' },
+              { 
+                dept: 'OPD', 
+                count: filteredBilling.filter(b => {
+                  const items = b.invoice_items || b.items || [];
+                  return (b.type || b.category || '').toUpperCase() === 'OPD' || items.some((i: any) => ['OPD', 'CONSULTATION', 'OPD/CONSULTANCY'].includes((i.category || '').toUpperCase()));
+                }).length, 
+                label: 'OPD Visits', 
+                color: 'bg-blue-500',
+                collected: departmentCollections.OPD
+              },
+              { 
+                dept: 'IPD', 
+                count: filteredBilling.filter(b => {
+                  const items = b.invoice_items || b.items || [];
+                  return (b.type || b.category || '').toUpperCase() === 'IPD' || items.some((i: any) => (i.category || '').toUpperCase() === 'IPD');
+                }).length, 
+                label: 'IPD Days', 
+                color: 'bg-indigo-500',
+                collected: departmentCollections.IPD
+              },
+              { 
+                dept: 'Pharmacy', 
+                count: filteredBilling.filter(b => {
+                  const items = b.invoice_items || b.items || [];
+                  return (b.type || b.category || '').toUpperCase() === 'PHARMACY' || items.some((i: any) => (i.category || '').toUpperCase() === 'PHARMACY');
+                }).length, 
+                label: 'RX Sold', 
+                color: 'bg-teal-500',
+                collected: departmentCollections.Pharmacy
+              },
+              { 
+                dept: 'Lab/Rad', 
+                count: filteredBilling.filter(b => {
+                  const items = b.invoice_items || b.items || [];
+                  return (b.type || b.category || '').toUpperCase() === 'LAB' || items.some((i: any) => ['PATHOLOGY', 'RADIOLOGY', 'LAB', 'PATH', 'RADIO'].includes((i.category || '').toUpperCase()));
+                }).length, 
+                label: 'Test Reports', 
+                color: 'bg-purple-500',
+                collected: departmentCollections.Lab
+              },
+              { 
+                dept: 'OT', 
+                count: filteredBilling.filter(b => {
+                  const items = b.invoice_items || b.items || [];
+                  return (b.type || b.category || '').toUpperCase() === 'OT' || items.some((i: any) => (i.category || '').toUpperCase() === 'OT');
+                }).length, 
+                label: 'OT Records', 
+                color: 'bg-rose-500',
+                collected: departmentCollections.OT
+              },
             ].map((d) => (
               <div key={d.dept} className="p-6 hover:bg-slate-50/50 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <div className={`w-2 h-2 rounded-full ${d.color}`}></div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{d.dept}</span>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-2xl font-bold">{d.count}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase">{d.label}</p>
+                <div className="space-y-1.5">
+                  <p className="text-xl font-extrabold text-slate-800">{formatCurrency(d.collected)}</p>
+                  <p className="text-[10.5px] text-muted-foreground font-bold uppercase tracking-wide">
+                    {d.count} {d.label}
+                  </p>
                 </div>
               </div>
             ))}
