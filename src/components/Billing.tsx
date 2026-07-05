@@ -112,30 +112,54 @@ export default function Billing() {
         let discountAmt = inv.discount_amount ?? inv.discountAmount ?? inv.discount ?? 0;
         let payableAmt = inv.payable_amount ?? inv.payableAmount ?? inv.total_amount ?? inv.totalAmount ?? 0;
         let paidAmt = inv.paid_amount ?? inv.paidAmount ?? 0;
-        const totalAmt = inv.total_amount ?? inv.totalAmount ?? 0;
+        let totalAmt = inv.total_amount ?? inv.totalAmount ?? 0;
+        let status = inv.status || inv.payment_status || 'Unpaid';
 
-        if ((inv.type === 'OPD' || inv.type === 'Independent') && appointmentsData && discountAmt === 0) {
+        if ((inv.type === 'OPD' || inv.type === 'Independent') && appointmentsData) {
           const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
           const matchingApt = appointmentsData.find((apt: any) => {
             const aptPid = apt.patient_id || apt.patientId;
             const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
-            const aptDisc = Number(apt.discount_amount || apt.discountAmount || 0);
-            return aptPid === pId && aptDateStr === invDateStr && aptDisc > 0;
+            return aptPid === pId && (aptDateStr === invDateStr || invDateStr === '');
           });
 
           if (matchingApt) {
+            const aptFee = Number(matchingApt.fee || matchingApt.appointmentFee || 500);
             const aptDisc = Number(matchingApt.discount_amount || matchingApt.discountAmount || 0);
+            const aptPaymentStatus = matchingApt.payment_status || matchingApt.paymentStatus || 'Pending';
+            
+            totalAmt = aptFee;
             discountAmt = aptDisc;
-            payableAmt = Math.max(0, totalAmt - aptDisc);
-            paidAmt = Math.max(0, totalAmt - aptDisc);
+            payableAmt = Math.max(0, aptFee - aptDisc);
+            
+            if (aptPaymentStatus === 'Paid') {
+              paidAmt = payableAmt;
+              status = 'Paid';
+            } else if (aptPaymentStatus === 'Refunded') {
+              paidAmt = 0;
+              status = 'Refunded';
+            } else {
+              paidAmt = 0;
+              status = 'Unpaid';
+            }
 
-            // Trigger a background update in the database to heal the invoice permanently
-            supabaseService.updateInvoice(inv.id, {
-              ...inv,
-              discount_amount: discountAmt,
-              payable_amount: payableAmt,
-              paid_amount: paidAmt
-            }).catch(err => console.warn('Silent failure healing invoice discount:', err));
+            // Trigger permanent database healing if mismatch is present
+            const rawPaid = Number(inv.paid_amount ?? inv.paidAmount ?? 0);
+            const rawDisc = Number(inv.discount_amount ?? inv.discountAmount ?? 0);
+            const rawTotal = Number(inv.total_amount ?? inv.totalAmount ?? 0);
+            const rawStatus = inv.status || inv.payment_status || 'Unpaid';
+
+            if (rawPaid !== paidAmt || rawDisc !== discountAmt || rawTotal !== totalAmt || rawStatus !== status) {
+              supabaseService.updateInvoice(inv.id, {
+                ...inv,
+                status: status,
+                payment_status: status,
+                total_amount: totalAmt,
+                discount_amount: discountAmt,
+                payable_amount: payableAmt,
+                paid_amount: paidAmt
+              }).catch(err => console.warn('Silent failure healing invoice:', err));
+            }
           }
         }
 
@@ -144,6 +168,9 @@ export default function Billing() {
           discount_amount: discountAmt,
           payable_amount: payableAmt,
           paid_amount: paidAmt,
+          total_amount: totalAmt,
+          status: status,
+          payment_status: status,
           patients: inv.patients || (matchedPatient ? {
             id: matchedPatient.id,
             name: matchedPatient.name,
@@ -158,7 +185,61 @@ export default function Billing() {
         const patObj = inv.patients || matchedPatient || { id: pId };
         return !isDummyPatient(patObj);
       });
-      setBills(enrichedInvoices);
+
+      // Synthesize virtual invoices for any Paid OPD appointments that do not have a corresponding invoice in the list
+      const missingAptInvoices: any[] = [];
+      if (appointmentsData) {
+        appointmentsData.forEach((apt: any) => {
+          const aptPaymentStatus = apt.payment_status || apt.paymentStatus || 'Pending';
+          if (aptPaymentStatus !== 'Paid') return;
+
+          const pId = apt.patient_id || apt.patientId;
+          const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
+
+          const hasInvoice = enrichedInvoices.some((inv: any) => {
+            const invPid = inv.patient_id || inv.patientId;
+            const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
+            return invPid === pId && (invDateStr === aptDateStr || inv.type === 'OPD');
+          });
+
+          if (!hasInvoice) {
+            const baseFee = Number(apt.fee || apt.appointmentFee || 500);
+            const discount = Number(apt.discount_amount || apt.discountAmount || 0);
+            const feeToCollect = Math.max(0, baseFee - discount);
+            const matchedPatient = patientsData ? patientsData.find((p: any) => p.id === pId) : null;
+
+            const virtualInv = {
+              id: `virtual-inv-opd-${apt.id}`,
+              patient_id: pId,
+              invoice_number: `INV-OPD-V-${apt.id}`,
+              status: 'Paid',
+              payment_status: 'Paid',
+              total_amount: baseFee,
+              discount_amount: discount,
+              payable_amount: feeToCollect,
+              paid_amount: feeToCollect,
+              payment_method: 'Cash',
+              type: 'OPD',
+              created_at: apt.created_at || new Date().toISOString(),
+              patients: matchedPatient ? {
+                id: matchedPatient.id,
+                name: matchedPatient.name,
+                mrn: matchedPatient.mrn,
+                phone: matchedPatient.phone,
+                email: matchedPatient.email
+              } : {
+                id: pId,
+                name: apt.patientName || 'Unknown',
+                phone: apt.patientPhone || 'N/A',
+                mrn: apt.patientMrn || 'N/A'
+              }
+            };
+            missingAptInvoices.push(virtualInv);
+          }
+        });
+      }
+
+      setBills([...enrichedInvoices, ...missingAptInvoices]);
     }
     if (patientsData) setPatients(patientsData);
     if (staffData && staffData.length > 0) setUsers(staffData);
@@ -665,23 +746,66 @@ export default function Billing() {
   const [conPatientId, setConPatientId] = useState<string>('');
   const [conPatientSearch, setConPatientSearch] = useState<string>('');
   const [outstandingSearchQuery, setOutstandingSearchQuery] = useState<string>('');
+  const [outstandingStatusFilter, setOutstandingStatusFilter] = useState<string>('all');
+  const [ledgerStartDate, setLedgerStartDate] = useState<string>('');
+  const [ledgerEndDate, setLedgerEndDate] = useState<string>('');
 
   const activePatientsWithOutstanding = useMemo(() => {
     return patients.map(p => {
-      const patientBills = bills.filter(b => b.patient_id === p.id || b.patientId === p.id);
+      const patientBills = bills.filter(b => {
+        const isPidMatch = b.patient_id === p.id || b.patientId === p.id;
+        if (!isPidMatch) return false;
+
+        const dateVal = b.created_at || b.date;
+        if (!dateVal) return true; // Include if no date is set
+
+        const bDate = new Date(dateVal);
+        if (isNaN(bDate.getTime())) return true;
+
+        if (ledgerStartDate) {
+          const start = new Date(ledgerStartDate);
+          if (bDate < start) return false;
+        }
+
+        if (ledgerEndDate) {
+          const end = new Date(ledgerEndDate);
+          // Set to end of day
+          end.setHours(23, 59, 59, 999);
+          if (bDate > end) return false;
+        }
+
+        return true;
+      });
+
       const grossTotal = patientBills.reduce((sum, b) => sum + Number(b.total_amount || b.totalAmount || 0), 0);
       const discTotal = patientBills.reduce((sum, b) => sum + Number(b.discount_amount || b.discount || 0), 0);
+      const payableTotal = Math.max(0, grossTotal - discTotal);
       const paidTotal = patientBills.reduce((sum, b) => sum + Number(b.paid_amount || b.paidAmount || 0), 0);
-      const outstandingDues = Math.max(0, grossTotal - discTotal - paidTotal);
+      const outstandingDues = Math.max(0, payableTotal - paidTotal);
+
       return {
         ...p,
         grossTotal,
         discTotal,
+        payableTotal,
         paidTotal,
-        outstandingDues
+        outstandingDues,
+        hasBills: patientBills.length > 0
       };
     })
-    .filter(p => p.outstandingDues > 0 && !isDummyPatient(p))
+    .filter(p => !isDummyPatient(p))
+    .filter(p => {
+      if (outstandingStatusFilter === 'all') {
+        return p.hasBills;
+      }
+      if (outstandingStatusFilter === 'outstanding') {
+        return p.outstandingDues > 0;
+      }
+      if (outstandingStatusFilter === 'settled') {
+        return p.hasBills && p.outstandingDues === 0;
+      }
+      return true;
+    })
     .filter(p => {
       if (!outstandingSearchQuery.trim()) return true;
       const q = outstandingSearchQuery.toLowerCase();
@@ -689,7 +813,7 @@ export default function Billing() {
              (p.mrn || '').toLowerCase().includes(q) ||
              (p.phone || '').includes(q);
     });
-  }, [patients, bills, outstandingSearchQuery]);
+  }, [patients, bills, outstandingSearchQuery, outstandingStatusFilter, ledgerStartDate, ledgerEndDate]);
 
   const [showConPatientResults, setShowConPatientResults] = useState<boolean>(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
@@ -3571,24 +3695,64 @@ export default function Billing() {
             )}
 
             {!conPatientId && (
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="space-y-6 pt-4 border-t border-slate-100">
+                <div className="flex flex-col gap-4">
                   <div>
                     <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                      Active Patients Outstanding Balances Ledger
+                      Patient Consolidated Ledger
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      All active real patients with unpaid/unsettled billing records across OPD, IPD, Diagnostics, and Pharmacy.
+                      Retrieve, filter, and review combined billing ledgers showing gross bill, discount, payable, paid, and outstanding balance for all patients.
                     </p>
                   </div>
-                  <div className="relative w-full sm:w-72">
-                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      placeholder="Filter ledger by name, MRN, phone..."
-                      value={outstandingSearchQuery}
-                      onChange={(e) => setOutstandingSearchQuery(e.target.value)}
-                      className="pl-9 h-9 text-xs"
-                    />
+                  
+                  {/* Advanced Multi-parameter Filters */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                    <div className="relative">
+                      <Label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Search Patient</Label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Input
+                          placeholder="Name, MRN, or phone..."
+                          value={outstandingSearchQuery}
+                          onChange={(e) => setOutstandingSearchQuery(e.target.value)}
+                          className="pl-9 h-9 text-xs bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">Payment Status</Label>
+                      <select
+                        value={outstandingStatusFilter}
+                        onChange={(e) => setOutstandingStatusFilter(e.target.value)}
+                        className="w-full h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        <option value="all">All Patients with Bills</option>
+                        <option value="outstanding">With Outstanding Balance</option>
+                        <option value="settled">Fully Settled</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">From Date</Label>
+                      <Input
+                        type="date"
+                        value={ledgerStartDate}
+                        onChange={(e) => setLedgerStartDate(e.target.value)}
+                        className="h-9 text-xs bg-white"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-[10px] font-bold uppercase text-slate-500 mb-1 block">To Date</Label>
+                      <Input
+                        type="date"
+                        value={ledgerEndDate}
+                        onChange={(e) => setLedgerEndDate(e.target.value)}
+                        className="h-9 text-xs bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -3598,9 +3762,11 @@ export default function Billing() {
                       <TableRow className="hover:bg-transparent border-slate-100 text-[10px] uppercase tracking-wider font-extrabold text-slate-500">
                         <TableHead className="py-3 pl-4">Patient / MRN</TableHead>
                         <TableHead className="py-3">Contact Info</TableHead>
-                        <TableHead className="py-3 text-right">Gross Billed</TableHead>
-                        <TableHead className="py-3 text-right">Total Settled</TableHead>
-                        <TableHead className="py-3 text-right text-rose-600 font-black">Outstanding Balance</TableHead>
+                        <TableHead className="py-3 text-right">Bill (Gross)</TableHead>
+                        <TableHead className="py-3 text-right">Discount</TableHead>
+                        <TableHead className="py-3 text-right">Payable</TableHead>
+                        <TableHead className="py-3 text-right">Paid</TableHead>
+                        <TableHead className="py-3 text-right font-black">Balance</TableHead>
                         <TableHead className="py-3 text-right pr-4">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -3625,10 +3791,16 @@ export default function Billing() {
                             <TableCell className="py-3 text-right font-medium text-slate-700 text-xs">
                               {formatCurrency(p.grossTotal)}
                             </TableCell>
+                            <TableCell className="py-3 text-right font-medium text-rose-500 text-xs">
+                              {p.discTotal > 0 ? `-${formatCurrency(p.discTotal)}` : '₹0.00'}
+                            </TableCell>
+                            <TableCell className="py-3 text-right font-medium text-slate-800 text-xs">
+                              {formatCurrency(p.payableTotal)}
+                            </TableCell>
                             <TableCell className="py-3 text-right font-medium text-emerald-600 text-xs">
                               {formatCurrency(p.paidTotal)}
                             </TableCell>
-                            <TableCell className="py-3 text-right font-black text-rose-600 text-xs">
+                            <TableCell className={`py-3 text-right font-black text-xs ${p.outstandingDues > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
                               {formatCurrency(p.outstandingDues)}
                             </TableCell>
                             <TableCell className="py-3 text-right pr-4">
@@ -3649,8 +3821,8 @@ export default function Billing() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="py-12 text-center text-xs text-muted-foreground">
-                            {outstandingSearchQuery ? "No patients with outstanding balance found matching your search." : "No active patients with outstanding balance found."}
+                          <TableCell colSpan={8} className="py-12 text-center text-xs text-muted-foreground">
+                            No billing ledger records match the selected filter parameters.
                           </TableCell>
                         </TableRow>
                       )}

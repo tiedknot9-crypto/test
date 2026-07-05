@@ -127,30 +127,54 @@ export default function Dashboard() {
         let discountAmt = targetInv.discount_amount ?? targetInv.discountAmount ?? targetInv.discount ?? 0;
         let payableAmt = targetInv.payable_amount ?? targetInv.payableAmount ?? targetInv.total_amount ?? targetInv.totalAmount ?? 0;
         let paidAmt = targetInv.paid_amount ?? targetInv.paidAmount ?? 0;
-        const totalAmt = targetInv.total_amount ?? targetInv.totalAmount ?? 0;
+        let totalAmt = targetInv.total_amount ?? targetInv.totalAmount ?? 0;
+        let status = targetInv.status || targetInv.payment_status || 'Unpaid';
 
-        if ((targetInv.type === 'OPD' || targetInv.type === 'Independent') && appointmentsData && discountAmt === 0) {
+        if ((targetInv.type === 'OPD' || targetInv.type === 'Independent') && appointmentsData) {
           const invDateStr = targetInv.created_at ? new Date(targetInv.created_at).toISOString().split('T')[0] : '';
           const matchingApt = appointmentsData.find((apt: any) => {
             const aptPid = apt.patient_id || apt.patientId;
             const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
-            const aptDisc = Number(apt.discount_amount || apt.discountAmount || 0);
-            return aptPid === pId && aptDateStr === invDateStr && aptDisc > 0;
+            return aptPid === pId && (aptDateStr === invDateStr || invDateStr === '');
           });
 
           if (matchingApt) {
+            const aptFee = Number(matchingApt.fee || matchingApt.appointmentFee || 500);
             const aptDisc = Number(matchingApt.discount_amount || matchingApt.discountAmount || 0);
+            const aptPaymentStatus = matchingApt.payment_status || matchingApt.paymentStatus || 'Pending';
+            
+            totalAmt = aptFee;
             discountAmt = aptDisc;
-            payableAmt = Math.max(0, totalAmt - aptDisc);
-            paidAmt = Math.max(0, totalAmt - aptDisc);
+            payableAmt = Math.max(0, aptFee - aptDisc);
+            
+            if (aptPaymentStatus === 'Paid') {
+              paidAmt = payableAmt;
+              status = 'Paid';
+            } else if (aptPaymentStatus === 'Refunded') {
+              paidAmt = 0;
+              status = 'Refunded';
+            } else {
+              paidAmt = 0;
+              status = 'Unpaid';
+            }
 
-            // Trigger a background update in the database to heal the invoice permanently
-            supabaseService.updateInvoice(targetInv.id, {
-              ...targetInv,
-              discount_amount: discountAmt,
-              payable_amount: payableAmt,
-              paid_amount: paidAmt
-            }).catch(err => console.warn('Silent failure healing invoice discount:', err));
+            // Trigger permanent database healing if mismatch is present
+            const rawPaid = Number(targetInv.paid_amount ?? targetInv.paidAmount ?? 0);
+            const rawDisc = Number(targetInv.discount_amount ?? targetInv.discountAmount ?? 0);
+            const rawTotal = Number(targetInv.total_amount ?? targetInv.totalAmount ?? 0);
+            const rawStatus = targetInv.status || targetInv.payment_status || 'Unpaid';
+
+            if (rawPaid !== paidAmt || rawDisc !== discountAmt || rawTotal !== totalAmt || rawStatus !== status) {
+              supabaseService.updateInvoice(targetInv.id, {
+                ...targetInv,
+                status: status,
+                payment_status: status,
+                total_amount: totalAmt,
+                discount_amount: discountAmt,
+                payable_amount: payableAmt,
+                paid_amount: paidAmt
+              }).catch(err => console.warn('Silent failure healing invoice:', err));
+            }
           }
         }
 
@@ -158,10 +182,54 @@ export default function Dashboard() {
           ...targetInv,
           discount_amount: discountAmt,
           payable_amount: payableAmt,
-          paid_amount: paidAmt
+          paid_amount: paidAmt,
+          total_amount: totalAmt,
+          status: status,
+          payment_status: status
         };
       });
-      setInvoices(mappedInvoices);
+
+      // Synthesize virtual invoices for any Paid OPD appointments that do not have a corresponding invoice in the list
+      const missingAptInvoices: any[] = [];
+      if (appointmentsData) {
+        appointmentsData.forEach((apt: any) => {
+          const aptPaymentStatus = apt.payment_status || apt.paymentStatus || 'Pending';
+          if (aptPaymentStatus !== 'Paid') return;
+
+          const pId = apt.patient_id || apt.patientId;
+          const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
+
+          const hasInvoice = mappedInvoices.some((inv: any) => {
+            const invPid = inv.patient_id || inv.patientId;
+            const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
+            return invPid === pId && (invDateStr === aptDateStr || inv.type === 'OPD');
+          });
+
+          if (!hasInvoice) {
+            const baseFee = Number(apt.fee || apt.appointmentFee || 500);
+            const discount = Number(apt.discount_amount || apt.discountAmount || 0);
+            const feeToCollect = Math.max(0, baseFee - discount);
+
+            const virtualInv = {
+              id: `virtual-inv-opd-${apt.id}`,
+              patient_id: pId,
+              invoice_number: `INV-OPD-V-${apt.id}`,
+              status: 'Paid',
+              payment_status: 'Paid',
+              total_amount: baseFee,
+              discount_amount: discount,
+              payable_amount: feeToCollect,
+              paid_amount: feeToCollect,
+              payment_method: 'Cash',
+              type: 'OPD',
+              created_at: apt.created_at || new Date().toISOString()
+            };
+            missingAptInvoices.push(virtualInv);
+          }
+        });
+      }
+
+      setInvoices([...mappedInvoices, ...missingAptInvoices]);
     }
     if (statsData) setDbStats(statsData);
     if (expensesData) setExpenses(expensesData);
@@ -327,8 +395,45 @@ export default function Dashboard() {
 
   // Derive Stats
   const dashboardStats = useMemo(() => {
+    const now = new Date();
+    const filteredApts = appointments.filter((apt: any) => {
+      const dateVal = apt.appointment_date || apt.appointmentDate || apt.created_at;
+      if (!dateVal) return false;
+      const aptDate = new Date(dateVal);
+      if (isNaN(aptDate.getTime())) return false;
+      
+      if (timeFrame === 'today') {
+        const today = new Date();
+        return aptDate.getDate() === today.getDate() && 
+               aptDate.getMonth() === today.getMonth() && 
+               aptDate.getFullYear() === today.getFullYear();
+      }
+      
+      if (timeFrame === 'month') {
+        return aptDate.getMonth() === now.getMonth() && aptDate.getFullYear() === now.getFullYear();
+      }
+      
+      if (timeFrame === 'quarter') {
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const aptQuarter = Math.floor(aptDate.getMonth() / 3);
+        return currentQuarter === aptQuarter && aptDate.getFullYear() === now.getFullYear();
+      }
+      
+      if (timeFrame === 'year') {
+        return aptDate.getFullYear() === now.getFullYear();
+      }
+
+      if (timeFrame === 'custom' && dateRange.start && dateRange.end) {
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        return aptDate >= start && aptDate <= end;
+      }
+      
+      return true; // default/all
+    });
+
     // Process OPD appointments to calculate Direct Consultation Revenue (to align with OPD summary)
-    const opdApts = appointments.filter((apt: any) => !apt.type || apt.type === 'OPD');
+    const opdApts = filteredApts.filter((apt: any) => (!apt.type || apt.type === 'OPD') && (apt.payment_status === 'Paid' || apt.paymentStatus === 'Paid'));
     const opdConsultationEarnings = opdApts.reduce((sum, apt) => {
       const docName = apt.doctor || apt.doctorName || 'General Consultation';
       let feeVal = Number(apt.fee);
