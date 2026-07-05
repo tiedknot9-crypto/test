@@ -116,12 +116,50 @@ export default function Dashboard() {
         const isBill4 = idStr === 'bill4' || idStr.endsWith('d000-000000000004');
         const isBill5 = idStr === 'bill5' || idStr.endsWith('d000-000000000005');
 
-        if (isBill1) return { ...inv, date: getRelativeDateStr(0), created_at: getRelativeDateStr(0) };
-        if (isBill2) return { ...inv, date: getRelativeDateStr(1), created_at: getRelativeDateStr(1) };
-        if (isBill3) return { ...inv, date: getRelativeDateStr(3), created_at: getRelativeDateStr(3) };
-        if (isBill4) return { ...inv, date: getRelativeDateStr(8), created_at: getRelativeDateStr(8) };
-        if (isBill5) return { ...inv, date: getRelativeDateStr(15), created_at: getRelativeDateStr(15) };
-        return inv;
+        let targetInv = inv;
+        if (isBill1) targetInv = { ...inv, date: getRelativeDateStr(0), created_at: getRelativeDateStr(0) };
+        else if (isBill2) targetInv = { ...inv, date: getRelativeDateStr(1), created_at: getRelativeDateStr(1) };
+        else if (isBill3) targetInv = { ...inv, date: getRelativeDateStr(3), created_at: getRelativeDateStr(3) };
+        else if (isBill4) targetInv = { ...inv, date: getRelativeDateStr(8), created_at: getRelativeDateStr(8) };
+        else if (isBill5) targetInv = { ...inv, date: getRelativeDateStr(15), created_at: getRelativeDateStr(15) };
+
+        const pId = targetInv.patient_id || targetInv.patientId;
+        let discountAmt = targetInv.discount_amount ?? targetInv.discountAmount ?? targetInv.discount ?? 0;
+        let payableAmt = targetInv.payable_amount ?? targetInv.payableAmount ?? targetInv.total_amount ?? targetInv.totalAmount ?? 0;
+        let paidAmt = targetInv.paid_amount ?? targetInv.paidAmount ?? 0;
+        const totalAmt = targetInv.total_amount ?? targetInv.totalAmount ?? 0;
+
+        if ((targetInv.type === 'OPD' || targetInv.type === 'Independent') && appointmentsData && discountAmt === 0) {
+          const invDateStr = targetInv.created_at ? new Date(targetInv.created_at).toISOString().split('T')[0] : '';
+          const matchingApt = appointmentsData.find((apt: any) => {
+            const aptPid = apt.patient_id || apt.patientId;
+            const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
+            const aptDisc = Number(apt.discount_amount || apt.discountAmount || 0);
+            return aptPid === pId && aptDateStr === invDateStr && aptDisc > 0;
+          });
+
+          if (matchingApt) {
+            const aptDisc = Number(matchingApt.discount_amount || matchingApt.discountAmount || 0);
+            discountAmt = aptDisc;
+            payableAmt = Math.max(0, totalAmt - aptDisc);
+            paidAmt = Math.max(0, totalAmt - aptDisc);
+
+            // Trigger a background update in the database to heal the invoice permanently
+            supabaseService.updateInvoice(targetInv.id, {
+              ...targetInv,
+              discount_amount: discountAmt,
+              payable_amount: payableAmt,
+              paid_amount: paidAmt
+            }).catch(err => console.warn('Silent failure healing invoice discount:', err));
+          }
+        }
+
+        return {
+          ...targetInv,
+          discount_amount: discountAmt,
+          payable_amount: payableAmt,
+          paid_amount: paidAmt
+        };
       });
       setInvoices(mappedInvoices);
     }
@@ -298,7 +336,9 @@ export default function Dashboard() {
         const foundDoc = users.find((u: any) => u.name === docName);
         feeVal = foundDoc?.consultationFee ? Number(foundDoc.consultationFee) : 500;
       }
-      return sum + feeVal;
+      const discountVal = Number(apt.discount_amount || apt.discountAmount || 0);
+      const finalFee = Math.max(0, feeVal - discountVal);
+      return sum + finalFee;
     }, 0);
 
     // Dynamic OPD / IPD count and collection calculation from billing

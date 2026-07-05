@@ -39,6 +39,9 @@ export default function OPDSummaryView({ appointments = [], users = [] }: OPDSum
         feeVal = foundDoc?.consultationFee ? Number(foundDoc.consultationFee) : 500;
       }
       
+      const discountVal = Number(apt.discount_amount || apt.discountAmount || 0);
+      const finalFee = Math.max(0, feeVal - discountVal);
+      
       const dateParts = dateStr.split('-');
       const year = dateParts[0] || new Date().getFullYear().toString();
       const monthNum = dateParts[1] || '01';
@@ -53,7 +56,7 @@ export default function OPDSummaryView({ appointments = [], users = [] }: OPDSum
         ...apt,
         cleanDate: dateStr,
         cleanDoctor: docName,
-        cleanFee: feeVal,
+        cleanFee: finalFee,
         year,
         monthNum,
         monthName,

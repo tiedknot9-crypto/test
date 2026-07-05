@@ -114,7 +114,7 @@ export default function Billing() {
         let paidAmt = inv.paid_amount ?? inv.paidAmount ?? 0;
         const totalAmt = inv.total_amount ?? inv.totalAmount ?? 0;
 
-        if (inv.type === 'OPD' && appointmentsData && discountAmt === 0) {
+        if ((inv.type === 'OPD' || inv.type === 'Independent') && appointmentsData && discountAmt === 0) {
           const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
           const matchingApt = appointmentsData.find((apt: any) => {
             const aptPid = apt.patient_id || apt.patientId;
