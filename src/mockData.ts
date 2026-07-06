@@ -4,47 +4,7 @@ export const MOCK_USERS: User[] = [
   { id: 'u2', name: 'Admin', email: 'admin@hospital.com', role: 'SUPER_ADMIN', department: 'Cardiology', specialization: 'Interventional Cardiology', degree: 'MD, DM (Cardiology)', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Anjali' }
 ];
 
-export const MOCK_PATIENTS: Patient[] = [
-  {
-    id: 'demo-p1',
-    mrn: 'MRN-0001',
-    name: 'Amit Patel',
-    age: 28,
-    gender: 'Male',
-    phone: '9876543210',
-    email: 'amit.patel@email.com',
-    address: 'B-42, Sector 15, Noida',
-    bloodGroup: 'A+',
-    status: 'Active',
-    dob: '1996-05-15'
-  },
-  {
-    id: 'demo-p2',
-    mrn: 'MRN-0002',
-    name: 'Priya Singh',
-    age: 45,
-    gender: 'Female',
-    phone: '9123456789',
-    email: 'priya.singh@email.com',
-    address: 'Flat 201, Green View, Mumbai',
-    bloodGroup: 'O-',
-    status: 'High Risk',
-    dob: '1979-11-10'
-  },
-  {
-    id: 'demo-p3',
-    mrn: 'MRN-0003',
-    name: 'Rahul Sharma',
-    age: 34,
-    gender: 'Male',
-    phone: '9543210987',
-    email: 'rahul.sharma@email.com',
-    address: 'Main St, Delhi',
-    bloodGroup: 'B+',
-    status: 'Active',
-    dob: '1990-02-20'
-  }
-];
+export const MOCK_PATIENTS: Patient[] = [];
 
 export const MOCK_BEDS: Bed[] = [
   { id: 'b1', number: '101', ward: 'General Ward A', type: 'General', status: 'Available' },
@@ -55,62 +15,7 @@ export const MOCK_BEDS: Bed[] = [
 
 export const MOCK_APPOINTMENTS: Appointment[] = [];
 
-export const MOCK_BILLING: any[] = [
-  {
-    id: 'ph-bill1',
-    patientId: 'demo-p1',
-    date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    type: 'Pharmacy',
-    items: [
-      { description: 'Paracetamol 500mg Tablets (Batch A-10)', amount: 150, category: 'PHARMACY' },
-      { description: 'Amoxicillin 250mg (Batch P-99)', amount: 450, category: 'PHARMACY' }
-    ],
-    totalAmount: 600,
-    discount: 50,
-    paidAmount: 550,
-    status: 'Paid',
-    paymentMode: 'Cash',
-    patientName: 'Amit Patel',
-    patientPhone: '9876543210',
-    prescribingDoctor: 'Dr. Rajesh Sharma'
-  },
-  {
-    id: 'ph-bill2',
-    patientId: 'demo-p2',
-    date: new Date().toISOString().split('T')[0],
-    type: 'Pharmacy',
-    items: [
-      { description: 'Moxikind-CV 625 (Antibiotic prescription)', amount: 600, category: 'PHARMACY' },
-      { description: 'Vitamin C Syrup (Multivitamins)', amount: 400, category: 'PHARMACY' }
-    ],
-    totalAmount: 1000,
-    discount: 100,
-    paidAmount: 900,
-    status: 'Paid',
-    paymentMode: 'UPI',
-    patientName: 'Priya Singh',
-    patientPhone: '9123456789',
-    prescribingDoctor: 'Dr. R.K. Sharma'
-  },
-  {
-    id: 'ipd-bill1',
-    patientId: 'demo-p3',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    type: 'IPD',
-    items: [
-      { description: 'Semi-Private Room Rent (2 Days Ward Stay)', amount: 6000, category: 'IPD' },
-      { description: 'In-patient Nursing & Care Charges', amount: 2000, category: 'IPD' }
-    ],
-    totalAmount: 8000,
-    discount: 500,
-    paidAmount: 7500,
-    status: 'Paid',
-    paymentMode: 'UPI',
-    patientName: 'Rahul Sharma',
-    patientPhone: '9543210987',
-    prescribingDoctor: 'Dr. Rajesh Sharma'
-  }
-];
+export const MOCK_BILLING: any[] = [];
 
 export const MOCK_INVENTORY: InventoryItem[] = [
   { 
@@ -197,32 +102,13 @@ export const MOCK_OPERATION_RECORDS: OperationRecord[] = [];
 
 export const MOCK_NURSING_TASKS: NursingTask[] = [];
 
-export const MOCK_NURSE_SHIFTS: NurseShift[] = [
-  { id: 'ns1', nurseId: 'u3', shiftType: 'Morning', ward: 'General Ward A', status: 'Active' },
-  { id: 'ns2', nurseId: 'u1', shiftType: 'Morning', ward: 'ICU', status: 'Active' },
-];
+export const MOCK_NURSE_SHIFTS: NurseShift[] = [];
 
 export const MOCK_PATIENT_VITALS: PatientVitals[] = [];
 
 export const MOCK_PRESCRIPTIONS: Prescription[] = [];
 
-export const MOCK_PHARMACY_BILLING: BillingRecord[] = [
-  { 
-    id: 'ph-bill3', 
-    patientId: 'walk-in', 
-    date: '2026-04-17', 
-    items: [
-      { description: 'Vitamin C Syrup', amount: 150, category: 'Pharmacy' }
-    ], 
-    totalAmount: 150, 
-    paidAmount: 150, 
-    status: 'Paid', 
-    paymentMode: 'Cash',
-    patientName: 'Sameer Khan',
-    patientPhone: '9876543210',
-    prescribingDoctor: 'Dr. R.K. Sharma'
-  },
-];
+export const MOCK_PHARMACY_BILLING: BillingRecord[] = [];
 
 export const MOCK_LAB_TESTS = [
   { id: 'lt1', name: 'Complete Blood Count (CBC)', category: 'Pathology', price: 450 },

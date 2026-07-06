@@ -517,6 +517,42 @@ export default function App() {
 
   // Load hospital info and perform automatic offline sync on startup
   useEffect(() => {
+    // One-time complete purge of all preloaded mock/demo data to start fresh with empty entries
+    try {
+      const clearedKey = 'hms_database_cleared_v2';
+      if (!localStorage.getItem(clearedKey)) {
+        const keysToClear = [
+          STORAGE_KEYS.PATIENTS,
+          STORAGE_KEYS.APPOINTMENTS,
+          STORAGE_KEYS.BILLING,
+          STORAGE_KEYS.LAB_BILLS,
+          STORAGE_KEYS.NURSING_TASKS,
+          STORAGE_KEYS.PHARMACY_BILLS,
+          STORAGE_KEYS.PRESCRIPTIONS,
+          STORAGE_KEYS.LAB_TEST_ORDERS,
+          STORAGE_KEYS.EXTERNAL_REPORTS,
+          STORAGE_KEYS.RADIOLOGY_FILES,
+          STORAGE_KEYS.PATIENT_VITALS,
+          'hms_admissions',
+          'hms_discharge_summaries',
+          'hms_clinical_notes',
+          'hms_live_queue',
+          'hms_quick_registrations',
+          'hms_lis_bookings',
+          'hms_lis_doctors',
+          'hms_lis_franchises',
+          'hms_ot_schedules'
+        ];
+        keysToClear.forEach(key => {
+          localStorage.removeItem(key);
+        });
+        localStorage.setItem(clearedKey, 'true');
+        console.log('Successfully completed one-time clean database purge.');
+      }
+    } catch (err) {
+      console.warn('Error during one-time database purge:', err);
+    }
+
     const initializeDatabase = async () => {
       try {
         // Fetch hospital info
