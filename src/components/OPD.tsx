@@ -115,7 +115,13 @@ export default function OPD() {
   };
   const [isTokenSuccessOpen, setIsTokenSuccessOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>('all');
+  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState<string>(() => {
+    const sessionUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
+    if (sessionUser && (sessionUser.role?.toUpperCase() === 'DOCTOR' || sessionUser.role?.toUpperCase() === 'SURGEON')) {
+      return sessionUser.name || 'all';
+    }
+    return 'all';
+  });
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('');
   const [fromDateFilter, setFromDateFilter] = useState<string>('');
   const [toDateFilter, setToDateFilter] = useState<string>('');
@@ -196,6 +202,7 @@ export default function OPD() {
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const userRole = currentUser?.role;
   const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
+  const isReceptionist = normalizeRole(currentUser?.role) === 'RECEPTIONIST';
   const isDeleteForbidden = !['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizeRole(userRole));
 
   // Patient Clinical History states
@@ -1552,7 +1559,7 @@ export default function OPD() {
                 Export {activeTab === 'patients' ? 'Records' : 'Queue'}
               </Button>
             )}
-            {!isAccountant && currentUser?.role !== 'DOCTOR' && (
+            {!isAccountant && !isReceptionist && currentUser?.role !== 'DOCTOR' && (
               <Button 
                 className="bg-white text-teal-900 hover:bg-teal-50 gap-2 rounded-xl font-black h-10 shadow-md"
                 onClick={() => handleOpenAppointmentChange(true)}
@@ -2270,7 +2277,7 @@ export default function OPD() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {!isAccountant && (
+                          {!isAccountant && !isReceptionist && (
                             <Button 
                               variant="ghost" 
                               size="sm" 

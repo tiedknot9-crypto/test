@@ -315,6 +315,7 @@ export default function IPD() {
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const isCurrentUserAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HOSPITAL_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role?.toUpperCase().includes('ADMIN');
   const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
+  const isReceptionist = normalizeRole(currentUser?.role) === 'RECEPTIONIST';
   const isDeleteForbidden = false;
 
   // --- NEW WORKFLOWS STATE ---
@@ -1446,7 +1447,7 @@ export default function IPD() {
               <Download className="w-4 h-4" />
               Export Status
             </Button>
-            {!isAccountant && (
+            {!isAccountant && !isReceptionist && (
               <Button 
                 className="bg-white text-indigo-900 hover:bg-indigo-50 gap-2 rounded-xl font-black h-10 shadow-md"
                 onClick={() => setIsAddBedOpen(true)}
@@ -1829,18 +1830,20 @@ export default function IPD() {
         >
           Bed Allotment
         </Button>
-        <Button 
-          variant="ghost"
-          size="sm" 
-          onClick={() => setActiveTab('surgery')}
-          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
-            activeTab === 'surgery' 
-              ? 'bg-teal-600 text-white shadow-md hover:bg-teal-700' 
-              : 'text-slate-600 hover:bg-slate-200/60'
-          }`}
-        >
-          Surgery Details
-        </Button>
+        {!isReceptionist && (
+          <Button 
+            variant="ghost"
+            size="sm" 
+            onClick={() => setActiveTab('surgery')}
+            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+              activeTab === 'surgery' 
+                ? 'bg-teal-600 text-white shadow-md hover:bg-teal-700' 
+                : 'text-slate-600 hover:bg-slate-200/60'
+            }`}
+          >
+            Surgery Details
+          </Button>
+        )}
         <Button 
           variant="ghost"
           size="sm" 
@@ -2008,26 +2011,28 @@ export default function IPD() {
                           )}
 
                           <div className="grid grid-cols-2 gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 text-[10px] gap-1"
-                              onClick={() => {
-                                const currentVitals = storage.get(STORAGE_KEYS.PATIENT_VITALS, []);
-                                const patientVitals = currentVitals.find((v: any) => v.patientId === patient.id);
-                                setVitalsForm({
-                                  patientId: patient.id,
-                                  bp: patientVitals?.bp || '120/80',
-                                  pulse: patientVitals?.pulse || '78',
-                                  temp: patientVitals?.temp || '98.6',
-                                  spo2: patientVitals?.spo2 || '98'
-                                });
-                                setIsVitalsOpen(true);
-                              }}
-                            >
-                              <Activity className="w-3 h-3" />
-                              Vitals
-                            </Button>
+                            {!isReceptionist && !isAccountant && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-7 text-[10px] gap-1"
+                                onClick={() => {
+                                  const currentVitals = storage.get(STORAGE_KEYS.PATIENT_VITALS, []);
+                                  const patientVitals = currentVitals.find((v: any) => v.patientId === patient.id);
+                                  setVitalsForm({
+                                    patientId: patient.id,
+                                    bp: patientVitals?.bp || '120/80',
+                                    pulse: patientVitals?.pulse || '78',
+                                    temp: patientVitals?.temp || '98.6',
+                                    spo2: patientVitals?.spo2 || '98'
+                                  });
+                                  setIsVitalsOpen(true);
+                                }}
+                              >
+                                <Activity className="w-3 h-3" />
+                                Vitals
+                              </Button>
+                            )}
 
                             <Dialog open={isVitalsOpen} onOpenChange={setIsVitalsOpen}>
                               <DialogContent>

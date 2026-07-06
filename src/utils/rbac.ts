@@ -97,9 +97,9 @@ export const hasMenuAccess = (path: string, userRole: string | undefined | null)
     case '/ipd':
       return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'ACCOUNTANT'].includes(norm);
     case '/ot':
-      return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'SURGEON'].includes(norm);
+      return ['DOCTOR', 'NURSE', 'SURGEON'].includes(norm);
     case '/lab':
-      return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'LAB_STAFF', 'RADIOLOGIST', 'PATHOLOGIST', 'ACCOUNTANT'].includes(norm);
+      return ['DOCTOR', 'NURSE', 'LAB_STAFF', 'RADIOLOGIST', 'PATHOLOGIST', 'ACCOUNTANT'].includes(norm);
     case '/patient-overview':
       return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'ACCOUNTANT'].includes(norm);
     case '/maternity':
@@ -108,7 +108,7 @@ export const hasMenuAccess = (path: string, userRole: string | undefined | null)
     case '/pharmacy/pos':
       return ['PHARMACIST', 'ACCOUNTANT'].includes(norm);
     case '/billing':
-      return ['ACCOUNTANT', 'RECEPTIONIST'].includes(norm);
+      return ['ACCOUNTANT'].includes(norm);
     case '/expenses':
       return ['ACCOUNTANT'].includes(norm);
     case '/settings':
