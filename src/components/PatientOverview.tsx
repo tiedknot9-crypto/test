@@ -466,14 +466,38 @@ View full details at: ${shareUrl}
       return;
     }
 
+    const latestVitals = vitals && vitals.length > 0 ? vitals[0] : undefined;
+
     const html = getPrescriptionPrintHtml(
       {
         name: selectedPatient.name,
         age: selectedPatient.age,
         gender: selectedPatient.gender,
-        mrn: selectedPatient.mrn
+        mrn: selectedPatient.mrn,
+        phone: selectedPatient.phone || selectedPatient.mobile || '',
+        fatherName: selectedPatient.fatherName || selectedPatient.father_name || ''
       },
-      prescriptionData || { medicines: [] },
+      prescriptionData ? {
+        ...prescriptionData,
+        vitals: latestVitals ? {
+          bp: latestVitals.bp,
+          pulse: latestVitals.pulse,
+          temp: latestVitals.temp,
+          spo2: latestVitals.spo2,
+          weight: latestVitals.weight,
+          rr: latestVitals.rr || latestVitals.respiration
+        } : undefined
+      } : { 
+        medicines: [],
+        vitals: latestVitals ? {
+          bp: latestVitals.bp,
+          pulse: latestVitals.pulse,
+          temp: latestVitals.temp,
+          spo2: latestVitals.spo2,
+          weight: latestVitals.weight,
+          rr: latestVitals.rr || latestVitals.respiration
+        } : undefined
+      },
       doctor,
       hospitalInfo
     );

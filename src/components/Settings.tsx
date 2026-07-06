@@ -1065,7 +1065,9 @@ export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }
         name: patient?.name || 'N/A',
         age: patient?.age,
         gender: patient?.gender,
-        mrn: patient?.mrn
+        mrn: patient?.mrn,
+        phone: patient?.phone || (patient as any)?.mobile || '',
+        fatherName: (patient as any)?.fatherName || (patient as any)?.father_name || ''
       },
       {
         date: pres.date,

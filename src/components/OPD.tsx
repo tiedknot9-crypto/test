@@ -101,6 +101,7 @@ export default function OPD() {
     setIsAppointmentOpen(open);
     if (!open) {
       setEditingAppointment(null);
+      setPatientSearchTerm('');
       setNewAppointment({ 
         patientId: '', 
         doctor: '', 
@@ -479,18 +480,29 @@ export default function OPD() {
     }
 
     const doctor = users.find(u => u.name === prescription.doctor);
+    const latestVitals = selectedPatientVitals && selectedPatientVitals.length > 0 ? selectedPatientVitals[0] : undefined;
 
     const html = getPrescriptionPrintHtml(
       {
         name: selectedPatient.name,
         age: selectedPatient.age,
         gender: selectedPatient.gender,
-        mrn: selectedPatient.mrn
+        mrn: selectedPatient.mrn,
+        phone: selectedPatient.phone || selectedPatient.mobile || '',
+        fatherName: selectedPatient.fatherName || selectedPatient.father_name || ''
       },
       {
         date: prescription.date,
         medicines: prescription.medicines,
-        advice: prescription.advice
+        advice: prescription.advice,
+        vitals: latestVitals ? {
+          bp: latestVitals.bp,
+          pulse: latestVitals.pulse,
+          temp: latestVitals.temp,
+          spo2: latestVitals.spo2,
+          weight: latestVitals.weight,
+          rr: latestVitals.rr || latestVitals.respiration
+        } : undefined
       },
       doctor,
       hospitalInfo
@@ -591,6 +603,8 @@ export default function OPD() {
       return;
     }
     setEditingAppointment(apt);
+    const patObj = patients.find(p => p.id === apt.patient_id || p.id === apt.patientId);
+    setPatientSearchTerm(patObj?.name || apt.patientName || '');
     setNewAppointment({
       patientId: apt.patient_id || apt.patientId || '',
       doctor: apt.doctor || 'Dr. Rajesh Sharma',
@@ -833,6 +847,7 @@ export default function OPD() {
         toast.success('Appointment updated successfully');
         setIsAppointmentOpen(false);
         setEditingAppointment(null);
+        setPatientSearchTerm('');
         setNewAppointment({ patientId: '', doctor: '', date: '', time: '', urgency: 'Routine', discountAmount: '0', discountGivenBy: '' });
         window.dispatchEvent(new Event('storage'));
       } else {
@@ -953,6 +968,7 @@ export default function OPD() {
       setIsAppointmentOpen(false);
       setIsTokenSuccessOpen(true);
       playNotificationSound();
+      setPatientSearchTerm('');
       setNewAppointment({ patientId: '', doctor: '', date: '', time: '', urgency: 'Routine', discountAmount: '0', discountGivenBy: '' });
       toast.success('Appointment booked and token generated');
     } else {
@@ -2532,17 +2548,29 @@ export default function OPD() {
                   }
                   
                   const docObj = users.find(u => u.name === (rx.doctor || rx.doctor_name));
+                  const latestVitals = selectedPatientVitals && selectedPatientVitals.length > 0 ? selectedPatientVitals[0] : undefined;
+
                   const html = getPrescriptionPrintHtml(
                     {
                       name: selectedPatient.name,
                       age: selectedPatient.age,
                       gender: selectedPatient.gender,
-                      mrn: selectedPatient.mrn
+                      mrn: selectedPatient.mrn,
+                      phone: selectedPatient.phone || selectedPatient.mobile || '',
+                      fatherName: selectedPatient.fatherName || selectedPatient.father_name || ''
                     },
                     {
                       date: rx.date || rx.prescription_date,
                       medicines: rx.medicines || rx.medications || [],
-                      advice: rx.advice || rx.notes || ''
+                      advice: rx.advice || rx.notes || '',
+                      vitals: latestVitals ? {
+                        bp: latestVitals.bp,
+                        pulse: latestVitals.pulse,
+                        temp: latestVitals.temp,
+                        spo2: latestVitals.spo2,
+                        weight: latestVitals.weight,
+                        rr: latestVitals.rr || latestVitals.respiration
+                      } : undefined
                     },
                     docObj,
                     hospitalInfo
@@ -2594,17 +2622,29 @@ export default function OPD() {
                   return;
                 }
                 const docObj = users.find(u => u.name === (rx.doctor || rx.doctor_name));
+                const latestVitals = selectedPatientVitals && selectedPatientVitals.length > 0 ? selectedPatientVitals[0] : undefined;
+
                 const html = getPrescriptionPrintHtml(
                   {
                     name: selectedPatient.name,
                     age: selectedPatient.age,
                     gender: selectedPatient.gender,
-                    mrn: selectedPatient.mrn
+                    mrn: selectedPatient.mrn,
+                    phone: selectedPatient.phone || selectedPatient.mobile || '',
+                    fatherName: selectedPatient.fatherName || selectedPatient.father_name || ''
                   },
                   {
                     date: rx.date || rx.prescription_date,
                     medicines: rx.medicines || rx.medications || [],
-                    advice: rx.advice || rx.notes || ''
+                    advice: rx.advice || rx.notes || '',
+                    vitals: latestVitals ? {
+                      bp: latestVitals.bp,
+                      pulse: latestVitals.pulse,
+                      temp: latestVitals.temp,
+                      spo2: latestVitals.spo2,
+                      weight: latestVitals.weight,
+                      rr: latestVitals.rr || latestVitals.respiration
+                    } : undefined
                   },
                   docObj,
                   hospitalInfo

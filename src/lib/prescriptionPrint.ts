@@ -3,6 +3,8 @@ export interface PrintPatient {
   age?: number | string;
   gender?: string;
   mrn?: string;
+  phone?: string;
+  fatherName?: string;
 }
 
 export interface PrintMedicine {
@@ -14,12 +16,22 @@ export interface PrintMedicine {
   startTime?: string;
 }
 
+export interface PrintVitals {
+  temp?: string | number;
+  bp?: string;
+  pulse?: string | number;
+  spo2?: string | number;
+  weight?: string | number;
+  rr?: string | number;
+}
+
 export interface PrintPrescription {
   date?: string;
   medicines: PrintMedicine[];
   advice?: string;
   diagnosis?: string;
   notes?: string;
+  vitals?: PrintVitals;
 }
 
 export interface PrintDoctor {
@@ -58,6 +70,17 @@ export function getPrescriptionPrintHtml(
   const patAgeGender = `${patient?.age || 'N/A'}Y / ${patient?.gender || 'N/A'}`;
   const presDate = prescription?.date || new Date().toISOString().split('T')[0];
   const patMRN = patient?.mrn || 'N/A';
+  const patPhone = patient?.phone || '';
+  const patFatherName = patient?.fatherName || (patient as any)?.father_name || '';
+
+  // Extract vitals
+  const vts = prescription?.vitals;
+  const bpVal = vts?.bp || '';
+  const pulseVal = vts?.pulse !== undefined && vts?.pulse !== 0 ? String(vts.pulse) : '';
+  const tempVal = vts?.temp !== undefined ? String(vts.temp) : '';
+  const spo2Val = vts?.spo2 !== undefined && vts?.spo2 !== 0 ? String(vts.spo2) : '';
+  const weightVal = vts?.weight !== undefined ? String(vts.weight) : '';
+  const rrVal = vts?.rr !== undefined && vts?.rr !== 0 ? String(vts.rr) : '';
 
   const docName = doctor?.name || 'Attending Doctor';
   const docReg = doctor?.degree ? `Reg No: MC-${doctor.id?.toUpperCase() || '1234567'}` : 'Reg No: MC1234567';
@@ -306,22 +329,49 @@ export function getPrescriptionPrintHtml(
           </div>
           
           <!-- Dotted Line Patient Information Grid from Image 2 -->
-          <div style="display: flex; gap: 20px; flex-wrap: wrap; border-top: 1.5px solid #e2e8f0; border-bottom: 1.5px solid #e2e8f0; padding: 12px 10px; margin-bottom: 25px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; color: #1e293b;">
-            <div style="flex: 1.8; min-width: 260px; display: flex; align-items: flex-end;">
-              <span>Patient Name:</span>
-              <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patName}</span>
+          <div style="border-top: 1.5px solid #e2e8f0; border-bottom: 1.5px solid #e2e8f0; padding: 12px 10px; margin-bottom: 20px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; color: #1e293b; display: flex; flex-direction: column; gap: 12px;">
+            <!-- Row 1 -->
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; width: 100%;">
+              <div style="flex: 1.8; min-width: 240px; display: flex; align-items: flex-end;">
+                <span>Patient Name:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patName}</span>
+              </div>
+              <div style="flex: 1; min-width: 130px; display: flex; align-items: flex-end;">
+                <span>Age / Sex:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patAgeGender}</span>
+              </div>
+              <div style="flex: 1; min-width: 120px; display: flex; align-items: flex-end;">
+                <span>Date:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${presDate}</span>
+              </div>
             </div>
-            <div style="flex: 1; min-width: 140px; display: flex; align-items: flex-end;">
-              <span>Age / Sex:</span>
-              <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patAgeGender}</span>
+            <!-- Row 2 -->
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; width: 100%;">
+              <div style="flex: 1.5; min-width: 250px; display: flex; align-items: flex-end;">
+                <span>Father / Husband Name:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patFatherName || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>
+              </div>
+              <div style="flex: 1; min-width: 150px; display: flex; align-items: flex-end;">
+                <span>Mobile No:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patPhone || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span>
+              </div>
+              <div style="flex: 0.8; min-width: 110px; display: flex; align-items: flex-end;">
+                <span>MRN:</span>
+                <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patMRN}</span>
+              </div>
             </div>
-            <div style="flex: 1; min-width: 130px; display: flex; align-items: flex-end;">
-              <span>Date:</span>
-              <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${presDate}</span>
-            </div>
-            <div style="flex: 1; min-width: 130px; display: flex; align-items: flex-end;">
-              <span>MRN:</span>
-              <span style="flex-grow: 1; border-bottom: 1.5px dotted #94a3b8; margin-left: 8px; padding-bottom: 2px; font-weight: 800; color: #1d4ed8; padding-left: 5px;">${patMRN}</span>
+          </div>
+
+          <!-- Vitals / On Examination (O/E) Box -->
+          <div style="display: flex; gap: 15px; border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 20px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 11.5px; font-weight: 700; color: #334155; background-color: #f8fafc; align-items: center; page-break-inside: avoid;">
+            <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; letter-spacing: 0.05em; border-right: 1.5px solid #cbd5e1; padding-right: 10px; margin-right: 5px;">Vitals / O/E</span>
+            <div style="flex: 1; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div>BP: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 60px; display: inline-block; text-align: center; padding-bottom: 1px;">${bpVal || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> mmHg</div>
+              <div>Pulse: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 45px; display: inline-block; text-align: center; padding-bottom: 1px;">${pulseVal || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> /min</div>
+              <div>Temp: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 45px; display: inline-block; text-align: center; padding-bottom: 1px;">${tempVal || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> °F</div>
+              <div>SpO2: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 45px; display: inline-block; text-align: center; padding-bottom: 1px;">${spo2Val || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> %</div>
+              <div>Weight: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 45px; display: inline-block; text-align: center; padding-bottom: 1px;">${weightVal || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> kg</div>
+              <div>Resp Rate: <span style="font-weight: 800; color: #1d4ed8; border-bottom: 1px dotted #94a3b8; min-width: 45px; display: inline-block; text-align: center; padding-bottom: 1px;">${rrVal || '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'}</span> /min</div>
             </div>
           </div>
           

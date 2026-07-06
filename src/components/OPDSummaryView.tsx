@@ -72,16 +72,21 @@ export default function OPDSummaryView({ appointments = [], users = [] }: OPDSum
 
   // 1. Date-wise Data Grouping (sorted recent first)
   const dateWiseData = useMemo(() => {
-    const groups: Record<string, { date: string; count: number; revenue: number }> = {};
+    const groups: Record<string, { date: string; count: number; revenue: number; doctors: Set<string> }> = {};
     processedAppts.forEach(apt => {
       const key = apt.cleanDate;
       if (!groups[key]) {
-        groups[key] = { date: key, count: 0, revenue: 0 };
+        groups[key] = { date: key, count: 0, revenue: 0, doctors: new Set() };
       }
       groups[key].count += 1;
       groups[key].revenue += apt.cleanFee;
+      if (apt.cleanDoctor) {
+        groups[key].doctors.add(apt.cleanDoctor);
+      }
     });
-    return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
+    return Object.values(groups)
+      .map(g => ({ ...g, doctorsList: Array.from(g.doctors) }))
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [processedAppts]);
 
   // 2. Doctor-wise Data Grouping (sorted revenue highest first)
@@ -151,14 +156,18 @@ export default function OPDSummaryView({ appointments = [], users = [] }: OPDSum
 
     if (summaryType === 'date') {
       reportTitle = 'OPD Date-Wise Summary Report';
-      tableHeaders = '<th>Date</th><th>Total Appointments</th><th>Revenue Collected</th>';
-      tableRows = dateWiseData.map(d => `
-        <tr>
-          <td><strong>${formatDate(d.date)}</strong></td>
-          <td>${d.count}</td>
-          <td>₹${d.revenue.toLocaleString()}</td>
-        </tr>
-      `).join('');
+      tableHeaders = '<th>Date</th><th>Consultants / Doctors</th><th>Total Appointments</th><th>Revenue Collected</th>';
+      tableRows = dateWiseData.map(d => {
+        const docsStr = d.doctorsList && d.doctorsList.length > 0 ? d.doctorsList.join(', ') : 'N/A';
+        return `
+          <tr>
+            <td><strong>${formatDate(d.date)}</strong></td>
+            <td>${docsStr}</td>
+            <td>${d.count}</td>
+            <td>₹${d.revenue.toLocaleString()}</td>
+          </tr>
+        `;
+      }).join('');
     } else if (summaryType === 'doctor') {
       reportTitle = 'OPD Doctor-Wise Summary Report';
       tableHeaders = '<th>Doctor Name</th><th>Appointed Bookings</th><th>Revenue Generated</th>';
@@ -401,7 +410,17 @@ export default function OPDSummaryView({ appointments = [], users = [] }: OPDSum
                       return (
                         <TableRow key={d.date} className="border-slate-50 hover:bg-slate-50/50">
                           <TableCell className="font-bold text-slate-700 text-xs py-3.5">
-                            {formatDate(d.date)}
+                            <div>{formatDate(d.date)}</div>
+                            {d.doctorsList && d.doctorsList.length > 0 && (
+                              <div className="text-[10px] text-muted-foreground font-normal mt-1 flex flex-wrap gap-1 items-center">
+                                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mr-0.5">Physicians:</span>
+                                {d.doctorsList.map((doc: string) => (
+                                  <span key={doc} className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-sm">
+                                    {doc}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-center font-bold text-slate-600 text-xs">
                             <Badge variant="outline" className="bg-blue-50/30 text-blue-700 border-blue-100 font-extrabold">
