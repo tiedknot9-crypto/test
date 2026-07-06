@@ -333,45 +333,67 @@ function cleanAppointmentForPostgres(apt: any) {
   if (!apt) return apt;
   const cleaned = { ...apt };
   
-  let urgencyVal = cleaned.urgency || 'Routine';
-  
-  // Encode 'type' inside 'urgency' if type is specified and not the standard OPD/General
-  if (cleaned.type && cleaned.type !== 'OPD') {
-    urgencyVal = `${urgencyVal} [${cleaned.type}]`;
+  const hasUrgencyFields = 
+    apt.urgency !== undefined || 
+    apt.type !== undefined || 
+    apt.doctor !== undefined || 
+    apt.doctorName !== undefined || 
+    apt.doctor_name !== undefined || 
+    apt.discount_amount !== undefined || 
+    apt.discountAmount !== undefined || 
+    apt.discount_given_by !== undefined || 
+    apt.discountGivenBy !== undefined || 
+    apt.refund_given_by !== undefined || 
+    apt.refundGivenBy !== undefined;
+
+  if (hasUrgencyFields) {
+    let urgencyVal = cleaned.urgency || 'Routine';
+    
+    // Encode 'type' inside 'urgency' if type is specified and not the standard OPD/General
+    if (cleaned.type && cleaned.type !== 'OPD') {
+      urgencyVal = `${urgencyVal} [${cleaned.type}]`;
+    }
+
+    // Encode doctor name inside 'urgency' to survive fallback/lack of UUID matches
+    const docName = cleaned.doctor || cleaned.doctorName || cleaned.doctor_name;
+    if (docName) {
+      const safeDocName = String(docName).replace(/[\[\]]/g, '');
+      urgencyVal = `${urgencyVal} [doc:${safeDocName}]`;
+    }
+
+    // Encode discount amount
+    const discAmt = cleaned.discount_amount !== undefined ? cleaned.discount_amount : cleaned.discountAmount;
+    if (discAmt !== undefined && discAmt !== null && Number(discAmt) > 0) {
+      urgencyVal = `${urgencyVal} [disc:${Number(discAmt)}]`;
+    }
+
+    // Encode discount given by
+    const discBy = cleaned.discount_given_by !== undefined ? cleaned.discount_given_by : cleaned.discountGivenBy;
+    if (discBy) {
+      const safeDiscBy = String(discBy).replace(/[\[\]]/g, '');
+      urgencyVal = `${urgencyVal} [discby:${safeDiscBy}]`;
+    }
+
+    // Encode refund given by
+    const refBy = cleaned.refund_given_by !== undefined ? cleaned.refund_given_by : cleaned.refundGivenBy;
+    if (refBy) {
+      const safeRefBy = String(refBy).replace(/[\[\]]/g, '');
+      urgencyVal = `${urgencyVal} [refby:${safeRefBy}]`;
+    }
+
+    cleaned.urgency = urgencyVal;
   }
 
-  // Encode doctor name inside 'urgency' to survive fallback/lack of UUID matches
-  const docName = cleaned.doctor || cleaned.doctorName || cleaned.doctor_name;
-  if (docName) {
-    const safeDocName = String(docName).replace(/[\[\]]/g, '');
-    urgencyVal = `${urgencyVal} [doc:${safeDocName}]`;
+  const hasTimeFields = 
+    apt.appointment_time !== undefined || 
+    apt.appointmentTime !== undefined || 
+    apt.time !== undefined;
+
+  if (hasTimeFields) {
+    // Normalize appointment_time to standard 24h format for Postgres TIME column compatibility
+    let timeVal = cleaned.appointment_time || cleaned.appointmentTime || cleaned.time || '10:00 AM';
+    cleaned.appointment_time = cleanTimeForPostgres(timeVal);
   }
-
-  // Encode discount amount
-  const discAmt = cleaned.discount_amount !== undefined ? cleaned.discount_amount : cleaned.discountAmount;
-  if (discAmt !== undefined && discAmt !== null && Number(discAmt) > 0) {
-    urgencyVal = `${urgencyVal} [disc:${Number(discAmt)}]`;
-  }
-
-  // Encode discount given by
-  const discBy = cleaned.discount_given_by !== undefined ? cleaned.discount_given_by : cleaned.discountGivenBy;
-  if (discBy) {
-    const safeDiscBy = String(discBy).replace(/[\[\]]/g, '');
-    urgencyVal = `${urgencyVal} [discby:${safeDiscBy}]`;
-  }
-
-  // Encode refund given by
-  const refBy = cleaned.refund_given_by !== undefined ? cleaned.refund_given_by : cleaned.refundGivenBy;
-  if (refBy) {
-    const safeRefBy = String(refBy).replace(/[\[\]]/g, '');
-    urgencyVal = `${urgencyVal} [refby:${safeRefBy}]`;
-  }
-
-  cleaned.urgency = urgencyVal;
-
-  // Normalize appointment_time to standard 24h format for Postgres TIME column compatibility
-  let timeVal = cleaned.appointment_time || cleaned.appointmentTime || cleaned.time || '10:00 AM';
-  cleaned.appointment_time = cleanTimeForPostgres(timeVal);
   
   // list of actual columns in supabase_schema.sql
   const validColumns = [
@@ -1377,7 +1399,34 @@ const rawSupabaseService = {
 
   updateAppointment: async (id: string, updates: any) => {
     try {
-      const dbUpdates = cleanAppointmentForPostgres(updates);
+      // Fetch current record to merge encoded metadata (e.g. doctor, discount_amount, refund_given_by) in the urgency string
+      const { data: existing, error: getError } = await supabase
+        .from('appointments')
+        .select('urgency, appointment_time, fee, status, payment_status')
+        .eq('id', id)
+        .maybeSingle();
+
+      let mergedUpdates = { ...updates };
+      if (existing) {
+        const decoded = mapAppointmentFromPostgres(existing);
+        const keysToMerge = [
+          'doctor', 'doctorName', 'doctor_name', 
+          'discount_amount', 'discountAmount', 
+          'discount_given_by', 'discountGivenBy',
+          'refund_given_by', 'refundGivenBy',
+          'type', 'urgency'
+        ];
+        for (const k of keysToMerge) {
+          if (updates[k] === undefined && decoded[k] !== undefined) {
+            mergedUpdates[k] = decoded[k];
+          }
+        }
+        if (updates.appointment_time === undefined && updates.appointmentTime === undefined && updates.time === undefined) {
+          mergedUpdates.appointment_time = existing.appointment_time;
+        }
+      }
+
+      const dbUpdates = cleanAppointmentForPostgres(mergedUpdates);
       const { data, error } = await supabase
         .from('appointments')
         .update(dbUpdates)
