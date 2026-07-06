@@ -46,14 +46,14 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { supabaseService } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
-import { canUserModifyRecord } from '@/utils/rbac';
+import { canUserModifyRecord, normalizeRole } from '@/utils/rbac';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { generatePharmacyInvoiceHtml, DEFAULT_PHARMACY_SETTINGS } from '@/lib/pharmacyInvoicePrint';
 
 export default function Pharmacy() {
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
+  const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
 
   const [activeTab, setActiveTab] = useState(isAccountant ? 'billing' : 'inventory');
   const [inventory, setInventory] = useState<any[]>([]);

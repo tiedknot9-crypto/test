@@ -43,6 +43,7 @@ import { useDataSync } from '@/hooks/useDataSync';
 import { getPrescriptionPrintHtml } from '@/lib/prescriptionPrint';
 import { getPathologyReportHtml, getRadiologyReportHtml, getMaternityReportHtml } from '@/lib/reportPrint';
 import { getPatientReportHtml } from '@/lib/patientReportPrint';
+import { normalizeRole } from '@/utils/rbac';
 import { 
   Dialog, 
   DialogContent, 
@@ -72,6 +73,8 @@ export default function PatientOverview({ userRole }: { userRole?: string }) {
   const [previewData, setPreviewData] = useState<{url: string, name: string} | null>(null);
 
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
+  const isAccountant = normalizeRole(currentUser?.role || userRole) === 'ACCOUNTANT';
+  const isClinicalRole = ['ADMIN', 'DOCTOR', 'NURSE', 'SURGEON'].includes(normalizeRole(currentUser?.role || userRole));
   const isDoctor = currentUser && (
     currentUser.role?.toUpperCase() === 'DOCTOR' || 
     currentUser.role?.toUpperCase() === 'SURGEON'
@@ -865,18 +868,22 @@ View full details at: ${shareUrl}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2 border-medical-blue text-medical-blue hover:bg-blue-50" onClick={() => setIsPrescriptionOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Write Prescription
-          </Button>
+          {isClinicalRole && (
+            <Button variant="outline" className="gap-2 border-medical-blue text-medical-blue hover:bg-blue-50" onClick={() => setIsPrescriptionOpen(true)}>
+              <Plus className="w-4 h-4" />
+              Write Prescription
+            </Button>
+          )}
           <Button variant="outline" className="gap-2 border-slate-300" onClick={() => setIsUploadOpen(true)}>
             <Upload className="w-4 h-4" />
             Upload Old Record
           </Button>
-          <Button variant="outline" className="gap-2" onClick={handlePrintBlankPrescription}>
-            <FileText className="w-4 h-4" />
-            Blank Prescription
-          </Button>
+          {isClinicalRole && (
+            <Button variant="outline" className="gap-2" onClick={handlePrintBlankPrescription}>
+              <FileText className="w-4 h-4" />
+              Blank Prescription
+            </Button>
+          )}
           <Button variant="outline" className="gap-2" onClick={handlePrintPatient360Report}>
             <Printer className="w-4 h-4" />
             Print Report

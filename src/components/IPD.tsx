@@ -69,7 +69,7 @@ import {
 import { toast } from 'sonner';
 import { supabaseService } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
-import { canUserModifyRecord } from '@/utils/rbac';
+import { canUserModifyRecord, normalizeRole } from '@/utils/rbac';
 
 interface AdmissionFormDataPayload {
   patient_id: string;
@@ -314,7 +314,7 @@ export default function IPD() {
 
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const isCurrentUserAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HOSPITAL_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role?.toUpperCase().includes('ADMIN');
-  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
+  const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
   const isDeleteForbidden = false;
 
   // --- NEW WORKFLOWS STATE ---

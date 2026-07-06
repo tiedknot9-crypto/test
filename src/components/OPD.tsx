@@ -195,7 +195,7 @@ export default function OPD() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const userRole = currentUser?.role;
-  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
+  const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
   const isDeleteForbidden = !['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizeRole(userRole));
 
   // Patient Clinical History states
@@ -2270,17 +2270,19 @@ export default function OPD() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-medical-blue h-8 gap-1.5 whitespace-nowrap font-medium hover:bg-blue-50/50" 
-                            onClick={() => {
-                              startBookAppointmentForPatient(patient);
-                            }}
-                          >
-                            <CalendarIcon className="w-4 h-4 text-medical-blue" />
-                            Book Appointment
-                          </Button>
+                          {!isAccountant && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-medical-blue h-8 gap-1.5 whitespace-nowrap font-medium hover:bg-blue-50/50" 
+                              onClick={() => {
+                                startBookAppointmentForPatient(patient);
+                              }}
+                            >
+                              <CalendarIcon className="w-4 h-4 text-medical-blue" />
+                              Book Appointment
+                            </Button>
+                          )}
                           {canUserEditClinicalData(currentUser?.role) && (
                             <Button 
                               variant="ghost" 

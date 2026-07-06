@@ -48,6 +48,7 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { getPrescriptionPrintHtml } from '@/lib/prescriptionPrint';
 import { syncOfflineDataWithSupabase, getSupabaseUnreachable, setSupabaseUnreachable, supabaseService } from '@/services/supabaseService';
 import { DEFAULT_PHARMACY_SETTINGS } from '@/lib/pharmacyInvoicePrint';
+import { normalizeRole } from '@/utils/rbac';
 
 // ==========================================
 // SUPABASE DATABASE SQL CODE FOR TAX SLABS, BILLS, PHARMACY
@@ -227,7 +228,7 @@ const resizeImage = (file: File, maxW: number, maxH: number, callback: (resized:
 
 export default function Settings({ currentUser, onUserUpdate, onHospitalUpdate }: { currentUser?: any, onUserUpdate?: (user: any) => void, onHospitalUpdate?: (info: any) => void }) {
   const resolvedUser = currentUser || storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const isAccountant = resolvedUser?.role === 'ACCOUNTANT' || resolvedUser?.role === 'ACCOUNTS';
+  const isAccountant = normalizeRole(resolvedUser?.role) === 'ACCOUNTANT';
   const isAdmin = resolvedUser?.role === 'SUPER_ADMIN' || resolvedUser?.role === 'ADMIN' || resolvedUser?.role?.toUpperCase().includes('ADMIN') || (resolvedUser?.email && resolvedUser.email.toLowerCase().includes('admin'));
   const isFrontOffice = resolvedUser?.role === 'RECEPTION' || resolvedUser?.role === 'RECEPTIONIST' || resolvedUser?.role === 'FRONT_DESK' || (resolvedUser?.email && (resolvedUser.email.toLowerCase().includes('frontoffice') || resolvedUser.email.toLowerCase().includes('frontdesk')));
   currentUser = resolvedUser;

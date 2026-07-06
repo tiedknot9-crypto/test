@@ -46,11 +46,11 @@ import { toast } from 'sonner';
 import { supabaseService } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
-import { canUserModifyRecord } from '@/utils/rbac';
+import { canUserModifyRecord, normalizeRole } from '@/utils/rbac';
 
 export default function Staff() {
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
+  const isAccountant = normalizeRole(currentUser?.role) === 'ACCOUNTANT';
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
