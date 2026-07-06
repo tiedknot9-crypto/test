@@ -131,8 +131,8 @@ export const canUserViewFinancials = (userRole: string | undefined | null): bool
 // Checks if specific clinical fields/forms (like prescription entry) are editable/visible
 export const canUserEditClinicalData = (userRole: string | undefined | null): boolean => {
   const norm = normalizeRole(userRole);
-  // Only Doctors, Nurses, Admins, and Accountants (as requested) can handle clinical data
-  return ['ADMIN', 'DOCTOR', 'NURSE', 'SURGEON', 'ACCOUNTANT'].includes(norm);
+  // Only Doctors, Nurses, and Admins can handle clinical data
+  return ['ADMIN', 'DOCTOR', 'NURSE', 'SURGEON'].includes(norm);
 };
 
 // Checks if specific billing operations (refund, discount, edit invoice) are allowed

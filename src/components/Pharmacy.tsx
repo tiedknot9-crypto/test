@@ -52,7 +52,10 @@ import { Link } from 'react-router-dom';
 import { generatePharmacyInvoiceHtml, DEFAULT_PHARMACY_SETTINGS } from '@/lib/pharmacyInvoicePrint';
 
 export default function Pharmacy() {
-  const [activeTab, setActiveTab] = useState('inventory');
+  const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
+  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
+
+  const [activeTab, setActiveTab] = useState(isAccountant ? 'billing' : 'inventory');
   const [inventory, setInventory] = useState<any[]>([]);
   const [bills, setBills] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
@@ -62,9 +65,6 @@ export default function Pharmacy() {
   const [pharmacySettings, setPharmacySettings] = useState<any>(() => {
     return storage.get('hms_pharmacy_settings', DEFAULT_PHARMACY_SETTINGS);
   });
-
-  const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
-  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
 
   const [editingBillInner, setEditingBillInner] = useState<any | null>(null);
   const [isEditBillOpen, setIsEditBillOpen] = useState(false);
@@ -722,14 +722,16 @@ export default function Pharmacy() {
             </DialogContent>
           </Dialog>
 
-      <Tabs defaultValue="inventory" className="w-full" onValueChange={setActiveTab}>
+      <Tabs defaultValue={isAccountant ? "billing" : "inventory"} className="w-full" onValueChange={setActiveTab}>
         <TabsList className="bg-slate-100 p-1">
-          <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          {!isAccountant && <TabsTrigger value="inventory">Inventory</TabsTrigger>}
           <TabsTrigger value="billing">Pharmacy Billing</TabsTrigger>
-          <TabsTrigger value="settings" className="flex gap-2 items-center">
-            <Settings className="w-4 h-4" />
-            Pharmacy Settings
-          </TabsTrigger>
+          {!isAccountant && (
+            <TabsTrigger value="settings" className="flex gap-2 items-center">
+              <Settings className="w-4 h-4" />
+              Pharmacy Settings
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="inventory" className="space-y-6 mt-6">

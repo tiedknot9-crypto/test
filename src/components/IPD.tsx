@@ -314,7 +314,7 @@ export default function IPD() {
 
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const isCurrentUserAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HOSPITAL_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role?.toUpperCase().includes('ADMIN');
-  const isAccountant = false;
+  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
   const isDeleteForbidden = false;
 
   // --- NEW WORKFLOWS STATE ---

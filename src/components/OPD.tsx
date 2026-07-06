@@ -195,7 +195,7 @@ export default function OPD() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const userRole = currentUser?.role;
-  const isAccountant = false; // Accounts panel should have access to OPD panel features also
+  const isAccountant = currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS';
   const isDeleteForbidden = !['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizeRole(userRole));
 
   // Patient Clinical History states
