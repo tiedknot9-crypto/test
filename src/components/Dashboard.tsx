@@ -236,16 +236,23 @@ export default function Dashboard() {
     if (appointmentsData) {
       const mapped = appointmentsData.map((apt: any) => {
         const docId = apt.doctor_id || apt.doctorId;
-        if (docId && !apt.doctor) {
-          const doc = users.find((u: any) => u.id === docId);
-          if (doc) {
-            return { ...apt, doctor: doc.name, doctorName: doc.name };
-          }
-        }
+        let matchedDoc = docId ? users.find((u: any) => u.id === docId) : null;
+        
+        const pId = apt.patient_id || apt.patientId;
+        const matchedPatient = patientsData ? patientsData.find((p: any) => p.id === pId) : null;
+        
+        const rawPatName = apt.patientName || apt.patients?.name || matchedPatient?.name || 'Unknown';
+        const cleanPatName = (rawPatName === 'Walk-in Patient' || rawPatName === 'Walk-In Patient') && matchedPatient?.name ? matchedPatient.name : rawPatName;
+        const rawPatMrn = apt.patientMrn || apt.patients?.mrn || matchedPatient?.mrn || 'N/A';
+        const cleanPatMrn = (rawPatName === 'Walk-in Patient' || rawPatName === 'Walk-In Patient') && matchedPatient?.mrn ? matchedPatient.mrn : rawPatMrn;
+
         return {
           ...apt,
-          doctor: apt.doctor || apt.doctorName || 'OPD Consultant',
-          doctorName: apt.doctorName || apt.doctor || 'OPD Consultant'
+          patientId: pId,
+          patientName: cleanPatName,
+          patientMrn: cleanPatMrn,
+          doctor: matchedDoc ? matchedDoc.name : (apt.doctor || apt.doctorName || 'OPD Consultant'),
+          doctorName: matchedDoc ? matchedDoc.name : (apt.doctorName || apt.doctor || 'OPD Consultant')
         };
       });
       setAppointments(mapped);
@@ -266,6 +273,7 @@ export default function Dashboard() {
     
     const synced = await supabaseService.createAppointment({
       patient_id: newApptPatientId,
+      patientName: selectedPat?.name || undefined,
       doctor_id: doctorId,
       type: 'OPD',
       appointment_date: newApptDate,

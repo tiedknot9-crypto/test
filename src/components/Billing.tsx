@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OPDCollectionTab } from './OPDCollectionTab';
+import OPD from './OPD';
 import { 
   CreditCard, 
   Search, 
@@ -319,7 +320,7 @@ export default function Billing() {
   const [recentInvoicesEndDate, setRecentInvoicesEndDate] = useState<string>('');
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'analytics' | 'recent' | 'consolidated' | 'opd-collection'>(() => {
+  const [activeTab, setActiveTab] = useState<'analytics' | 'recent' | 'consolidated' | 'opd-collection' | 'opd-panel'>(() => {
     const user = storage.get(STORAGE_KEYS.SESSION_USER, null);
     return canUserViewFinancials(user?.role) ? 'analytics' : 'recent';
   });
@@ -1270,27 +1271,127 @@ export default function Billing() {
   };
 
   const handleExportBilling = () => {
-    const headers = ['Invoice ID', 'Patient MRN', 'Date', 'Amount', 'Status', 'Mode'];
-    const rows = bills.map(b => [
-      b.id,
-      b.patients?.mrn || 'N/A',
-      b.created_at,
-      b.total_amount,
-      b.status,
-      b.payment_method || 'N/A'
-    ]);
-    
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    let headers: string[] = [];
+    let rows: any[][] = [];
+    let filename = 'hospital_billing.csv';
+
+    if (activeTab === 'opd-collection') {
+      const mappedApts = appointments.map((apt: any) => {
+        const pId = apt.patient_id || apt.patientId;
+        const matchedPatient = patients.find((p: any) => 
+          p.id === pId || 
+          p.mrn === pId || 
+          (p.id && pId && String(p.id).replace(/[^0-9a-zA-Z]/g, '') === String(pId).replace(/[^0-9a-zA-Z]/g, ''))
+        );
+        
+        const docId = apt.doctor_id || apt.doctorId;
+        const doc = users.find((u: any) => 
+          u.id === docId || 
+          u.name === apt.doctor || 
+          u.name === apt.doctorName ||
+          (u.id && docId && String(u.id).replace(/[^0-9a-zA-Z]/g, '') === String(docId).replace(/[^0-9a-zA-Z]/g, ''))
+        );
+        
+        const aptDate = apt.appointment_date || apt.date || '';
+        const dateStr = typeof aptDate === 'string' ? aptDate.split('T')[0] : '';
+        
+        return {
+          ...apt,
+          id: apt.id,
+          patientName: matchedPatient?.name || apt.patientName || 'Unknown',
+          patientPhone: matchedPatient?.phone || apt.patientPhone || 'N/A',
+          patientMrn: matchedPatient?.mrn || apt.patientMrn || 'N/A',
+          doctor: doc?.name || apt.doctor || apt.doctorName || 'GP / Duty Doctor',
+          doctorDepartment: doc?.department || apt.doctorDepartment || 'General Medicine',
+          dateStr,
+          fee: Number(apt.fee || 500),
+          discountAmount: Number(apt.discount_amount || apt.discountAmount || 0),
+          discountGivenBy: apt.discount_given_by || apt.discountGivenBy || null,
+          refundGivenBy: apt.refund_given_by || apt.refundGivenBy || null,
+          paymentStatus: apt.payment_status || 'Pending'
+        };
+      }).filter((apt: any) => {
+        const pId = apt.patient_id || apt.patientId;
+        const matchedPatient = patients.find((p: any) => 
+          p.id === pId || 
+          p.mrn === pId || 
+          (p.id && pId && String(p.id).replace(/[^0-9a-zA-Z]/g, '') === String(pId).replace(/[^0-9a-zA-Z]/g, ''))
+        );
+        const patObj = matchedPatient || { id: pId, name: apt.patientName, phone: apt.patientPhone };
+        return !isDummyPatient(patObj);
+      });
+
+      const filteredApts = mappedApts.filter((apt: any) => {
+        if (apt.paymentStatus !== 'Paid' && apt.paymentStatus !== 'Refunded') return false;
+        if (opdStartDate && apt.dateStr < opdStartDate) return false;
+        if (opdEndDate && apt.dateStr > opdEndDate) return false;
+        if (opdDoctorFilter !== 'all' && apt.doctor !== opdDoctorFilter) return false;
+        return true;
+      });
+
+      headers = ['Appointment ID', 'Patient Name', 'Patient MRN', 'Doctor', 'Department', 'Date', 'Consultation Fee', 'Discount', 'Payment Status'];
+      rows = filteredApts.map(apt => [
+        apt.id || '',
+        apt.patientName,
+        apt.patientMrn,
+        apt.doctor,
+        apt.doctorDepartment,
+        apt.dateStr,
+        apt.fee,
+        apt.discountAmount,
+        apt.paymentStatus
+      ]);
+      filename = `opd_collections_${opdStartDate || 'all'}_to_${opdEndDate || 'all'}.csv`;
+
+    } else if (activeTab === 'consolidated') {
+      const selectedPatientData = patients.find(p => p.id === conPatientId);
+      if (!selectedPatientData) {
+        toast.error('Please select a patient first to export their consolidated ledger.');
+        return;
+      }
+      const conPatientInvoices = bills.filter(b => b.patient_id === conPatientId || b.patientId === conPatientId);
+      
+      headers = ['Invoice ID', 'Type/Source', 'Date', 'Amount', 'Discount', 'Paid Amount', 'Status'];
+      rows = conPatientInvoices.map(b => [
+        b.id || '',
+        b.type || b.department || 'Billing',
+        b.created_at || b.date || '',
+        b.total_amount || b.payable_amount || b.paid_amount || 0,
+        b.discount_amount || b.discount || 0,
+        b.paid_amount || 0,
+        b.status || b.payment_status || ''
+      ]);
+      filename = `consolidated_ledger_${selectedPatientData.name.replace(/\s+/g, '_')}.csv`;
+
+    } else {
+      headers = ['Invoice ID', 'Patient Name', 'Patient MRN', 'Date', 'Amount', 'Status', 'Mode'];
+      rows = filteredBills.map(b => [
+        b.id || '',
+        b.patients?.name || b.patientName || 'N/A',
+        b.patients?.mrn || b.patientMrn || 'N/A',
+        b.created_at || b.date || '',
+        b.total_amount || b.payable_amount || b.paid_amount || 0,
+        b.status || b.payment_status || '',
+        b.payment_method || b.paymentMethod || 'N/A'
+      ]);
+      filename = 'hospital_billing.csv';
+    }
+
+    const csvContent = [headers, ...rows].map(e => e.map(val => {
+      const strVal = val === null || val === undefined ? '' : String(val);
+      return `"${strVal.replace(/"/g, '""')}"`;
+    }).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', 'hospital_billing.csv');
+    a.setAttribute('download', filename);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success('Billing data exported');
+    toast.success('Data exported successfully');
   };
 
   const handleEditBill = (bill: any) => {
@@ -2877,6 +2978,16 @@ export default function Billing() {
         >
           📁 OPD Collection & Doctor Statements
         </button>
+        <button
+          className={`px-6 py-2.5 text-xs font-bold border-b-2 transition-all ${
+            activeTab === 'opd-panel' 
+              ? 'border-medical-blue text-medical-blue font-black bg-blue-50/40 rounded-t-lg' 
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+          onClick={() => setActiveTab('opd-panel')}
+        >
+          🏥 OPD Management Features
+        </button>
       </div>
 
       {activeTab === 'analytics' && (
@@ -3848,6 +3959,12 @@ export default function Billing() {
           opdDoctorFilter={opdDoctorFilter}
           setOpdDoctorFilter={setOpdDoctorFilter}
         />
+      )}
+
+      {activeTab === 'opd-panel' && (
+        <div className="bg-white rounded-3xl p-1 border border-slate-100 shadow-sm animate-in fade-in duration-300">
+          <OPD />
+        </div>
       )}
     </div>
   );

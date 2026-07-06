@@ -93,7 +93,7 @@ export const hasMenuAccess = (path: string, userRole: string | undefined | null)
     case '/':
       return true;
     case '/opd':
-      return ['DOCTOR', 'RECEPTIONIST', 'NURSE'].includes(norm);
+      return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'ACCOUNTANT'].includes(norm);
     case '/ipd':
       return ['DOCTOR', 'RECEPTIONIST', 'NURSE', 'ACCOUNTANT'].includes(norm);
     case '/ot':
@@ -131,8 +131,8 @@ export const canUserViewFinancials = (userRole: string | undefined | null): bool
 // Checks if specific clinical fields/forms (like prescription entry) are editable/visible
 export const canUserEditClinicalData = (userRole: string | undefined | null): boolean => {
   const norm = normalizeRole(userRole);
-  // Only Doctors, Nurses, and Admins can handle clinical data
-  return ['ADMIN', 'DOCTOR', 'NURSE', 'SURGEON'].includes(norm);
+  // Only Doctors, Nurses, Admins, and Accountants (as requested) can handle clinical data
+  return ['ADMIN', 'DOCTOR', 'NURSE', 'SURGEON', 'ACCOUNTANT'].includes(norm);
 };
 
 // Checks if specific billing operations (refund, discount, edit invoice) are allowed

@@ -195,7 +195,7 @@ export default function OPD() {
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const currentUser = storage.get(STORAGE_KEYS.SESSION_USER, null);
   const userRole = currentUser?.role;
-  const isAccountant = normalizeRole(userRole) === 'ACCOUNTANT';
+  const isAccountant = false; // Accounts panel should have access to OPD panel features also
   const isDeleteForbidden = !['ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(normalizeRole(userRole));
 
   // Patient Clinical History states
@@ -260,11 +260,16 @@ export default function OPD() {
             const doc = docId ? staffList.find((u: any) => u.id === docId) : null;
             const pId = apt.patient_id || apt.patientId;
             const matchedPatient = patientsData ? patientsData.find((p: any) => p.id === pId) : null;
+            const rawPatName = apt.patients?.name || matchedPatient?.name || 'Unknown';
+            const cleanPatName = (rawPatName === 'Walk-in Patient' || rawPatName === 'Walk-In Patient') && matchedPatient?.name ? matchedPatient.name : rawPatName;
+            const rawPatMrn = apt.patients?.mrn || matchedPatient?.mrn || 'N/A';
+            const cleanPatMrn = (rawPatName === 'Walk-in Patient' || rawPatName === 'Walk-In Patient') && matchedPatient?.mrn ? matchedPatient.mrn : rawPatMrn;
+
             return {
               ...apt,
               patientId: pId,
-              patientName: apt.patients?.name || matchedPatient?.name || 'Unknown',
-              patientMrn: apt.patients?.mrn || matchedPatient?.mrn || 'N/A',
+              patientName: cleanPatName,
+              patientMrn: cleanPatMrn,
               appointment_date: apt.appointment_date || apt.date,
               appointment_time: apt.appointment_time || apt.time,
               doctor: doc ? doc.name : (apt.doctor || apt.doctorName || defaultDocName),
@@ -955,6 +960,7 @@ export default function OPD() {
     
     const synced = await supabaseService.createAppointment({
       patient_id: newAppointment.patientId,
+      patientName: patient?.name || undefined,
       doctor_id: doctorId,
       type: 'OPD',
       appointment_date: appointmentDate,
@@ -1028,6 +1034,7 @@ export default function OPD() {
         const discountVal = Number(newAppointment.discountAmount || 0);
         const invoiceData = {
           patient_id: newAppointment.patientId,
+          patient_name: patient?.name || undefined,
           invoice_number: `INV-OPD-${Date.now()}`,
           status: 'Unpaid',
           total_amount: calculatedTotal,
@@ -1407,23 +1414,97 @@ export default function OPD() {
     let filename = '';
 
     if (activeTab === 'patients') {
-      headers = ['MRN', 'Name', 'Age', 'Gender', 'Phone'];
-      rows = patients.map(p => [p.mrn, p.name, p.age, p.gender, p.phone]);
+      const filteredPatients = patients.filter(p => {
+        if (!patientRecordsSearchQuery.trim()) return true;
+        const query = patientRecordsSearchQuery.toLowerCase();
+        return (p.name || '').toLowerCase().includes(query) ||
+               (p.mrn || '').toLowerCase().includes(query) ||
+               (p.phone || '').includes(query);
+      });
+
+      headers = ['MRN', 'Name', 'Age', 'Gender', 'Phone', 'Last Visit'];
+      rows = filteredPatients.map(p => [
+        p.mrn || '', 
+        p.name || '', 
+        p.age || '', 
+        p.gender || '', 
+        p.phone || '', 
+        p.created_at || p.registration_date ? new Date(p.created_at || p.registration_date).toLocaleDateString() : 'N/A'
+      ]);
       filename = 'patient_records.csv';
     } else {
-      headers = ['Token', 'Patient', 'Doctor', 'Time', 'Status'];
-      rows = appointments.map((a, i) => [
-        `#${100 + i + 1}`,
-        patients.find(p => p.id === a.patientId)?.name,
-        'Dr. Rajesh Sharma',
-        a.time,
-        a.status
-      ]);
+      const filteredAppointments = appointments
+        .filter(apt => {
+          const aptDate = typeof apt.appointment_date === 'string' ? apt.appointment_date : new Date(apt.appointment_date).toISOString().split('T')[0];
+          
+          if (fromDateFilter || toDateFilter) {
+            if (fromDateFilter && aptDate < fromDateFilter) {
+              return false;
+            }
+            if (toDateFilter && aptDate > toDateFilter) {
+              return false;
+            }
+            return true;
+          }
+
+          if (activeTab === 'queue') {
+            const targetDate = selectedDateFilter || new Date().toISOString().split('T')[0];
+            return aptDate === targetDate;
+          }
+          if (selectedDateFilter) {
+            return aptDate === selectedDateFilter;
+          }
+          return true;
+        })
+        .filter(apt => {
+          if (selectedDoctorFilter !== 'all') {
+            return (apt.doctor || apt.doctorName) === selectedDoctorFilter;
+          }
+          return true;
+        })
+        .filter(apt => {
+          if (!patientRecordsSearchQuery.trim()) return true;
+          const query = patientRecordsSearchQuery.toLowerCase();
+          return (apt.patientName || '').toLowerCase().includes(query) ||
+                 (apt.patientMrn || '').toLowerCase().includes(query) ||
+                 (apt.doctor || apt.doctorName || '').toLowerCase().includes(query);
+        });
+
+      headers = ['Token', 'Patient Name', 'MRN', 'Doctor', 'Department', 'Date', 'Time', 'Status', 'Payment Status', 'Urgency'];
+      rows = filteredAppointments.map((apt, i) => {
+        const tokenNum = `#${100 + i + 1}`;
+        const patientName = apt.patientName || '';
+        const patientMrn = apt.patientMrn || '';
+        const doctorName = apt.doctor || apt.doctorName || 'Duty Doctor';
+        const department = users.find(u => u.name === doctorName || u.id === apt.doctor_id)?.department || apt.doctorDepartment || 'General Medicine';
+        const apptDate = apt.appointment_date || '';
+        const apptTime = apt.appointment_time || apt.appointmentTime || apt.time || 'N/A';
+        const status = apt.status || '';
+        const paymentStatus = apt.payment_status || '';
+        const urgency = apt.urgency || '';
+
+        return [
+          tokenNum,
+          patientName,
+          patientMrn,
+          doctorName,
+          department,
+          apptDate,
+          apptTime,
+          status,
+          paymentStatus,
+          urgency
+        ];
+      });
       filename = activeTab === 'queue' ? 'live_queue.csv' : 'appointments.csv';
     }
     
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const csvContent = [headers, ...rows].map(e => e.map(val => {
+      const strVal = val === null || val === undefined ? '' : String(val);
+      return `"${strVal.replace(/"/g, '""')}"`;
+    }).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
@@ -1432,7 +1513,7 @@ export default function OPD() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} exported`);
+    toast.success(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} exported successfully`);
   };
 
   if (loading) {
@@ -2448,7 +2529,7 @@ export default function OPD() {
                               <FileText className="w-4 h-4" />
                             </Button>
                           )}
-                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'DOCTOR' || currentUser?.role === 'NURSE' || currentUser?.role === 'RECEPTIONIST' || currentUser?.role === 'RECEPTION' || currentUser?.role === 'FRONT_DESK') && (
+                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'DOCTOR' || currentUser?.role === 'NURSE' || currentUser?.role === 'RECEPTIONIST' || currentUser?.role === 'RECEPTION' || currentUser?.role === 'FRONT_DESK' || currentUser?.role === 'ACCOUNTANT' || currentUser?.role === 'ACCOUNTS') && (
                             <Button 
                               variant="ghost" 
                               size="icon" 

@@ -114,14 +114,11 @@ async function ensurePatientExistsInDb(patientId: string, fallbackName?: string)
     console.log("[Supabase Request] ensurePatientExistsInDb - Checking existence for cleanId:", cleanId);
     const { data, error } = await supabase
       .from('patients')
-      .select('id')
+      .select('id, name')
       .eq('id', cleanId)
       .maybeSingle();
        
     console.log("[Supabase Response] ensurePatientExistsInDb - Check data:", data, "Check error:", error);
-    if (data && data.id) {
-      return true; // Already exists!
-    }
     
     // If not, fetch details from local storage or mock data to insert a record
     const localPatients = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
@@ -132,7 +129,25 @@ async function ensurePatientExistsInDb(patientId: string, fallbackName?: string)
       p.mrn === patientId
     );
     
-    const nameToUse = fallbackName || patientData?.name || 'Walk-in Patient';
+    const betterName = fallbackName || patientData?.name;
+    
+    if (data && data.id) {
+      // If the patient exists in the database but they have a generic name, and we have a real name, update it!
+      const existingName = (data.name || '').toLowerCase().trim();
+      if (betterName && 
+          betterName.toLowerCase().trim() !== 'walk-in patient' && 
+          betterName.toLowerCase().trim() !== 'walk-in' && 
+          (existingName === 'walk-in patient' || existingName === 'walk-in' || existingName === '')) {
+        console.log("[Supabase Request] ensurePatientExistsInDb - Updating patient name from Walk-in to:", betterName);
+        await supabase
+          .from('patients')
+          .update({ name: betterName })
+          .eq('id', cleanId);
+      }
+      return true; // Already exists!
+    }
+    
+    const nameToUse = betterName || 'Walk-in Patient';
     
     if (!patientData && fallbackName) {
       // Try to find by name in local storage
@@ -504,12 +519,19 @@ function mapAppointmentFromPostgres(apt: any) {
     }
   }
 
+  const patientsList = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS) || [];
+  const pid = mapped.patient_id || mapped.patientId;
+  const p = patientsList.find((p_item: any) => p_item.id === pid || p_item.mrn === pid);
+
   if (!mapped.patients) {
-    const patientsList = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS);
-    const pid = mapped.patient_id || mapped.patientId;
-    const p = patientsList.find((p_item: any) => p_item.id === pid || p_item.mrn === pid);
     if (p) {
       mapped.patients = { name: p.name, mrn: p.mrn, age: p.age, gender: p.gender };
+    }
+  } else {
+    const existingName = (mapped.patients.name || '').toLowerCase().trim();
+    if (p && p.name && (existingName === 'walk-in patient' || existingName === 'walk-in' || existingName === 'unknown' || existingName === '')) {
+      mapped.patients.name = p.name;
+      if (p.mrn) mapped.patients.mrn = p.mrn;
     }
   }
 
@@ -1090,7 +1112,6 @@ export function normalizePatient(p: any) {
 export function isDummyPatient(p: any): boolean {
   if (!p) return false;
   const id = String(p.id || p.patientId || p.patient_id || '').toLowerCase().trim();
-  const name = (p.name || p.patientName || p.patient_name || '').toLowerCase().trim();
   
   const exactDummyIds = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10'];
   const deterministicDummyIds = [
@@ -1106,45 +1127,11 @@ export function isDummyPatient(p: any): boolean {
     '00000000-0000-4000-a000-000000000010'
   ];
 
-  if (exactDummyIds.includes(id) || deterministicDummyIds.includes(id)) {
+  if (exactDummyIds.includes(id) || deterministicDummyIds.includes(id) || id.startsWith('dummy') || id.startsWith('mock')) {
     return true;
   }
 
-  // If it is a valid UUID but not one of our deterministic dummy UUIDs, it is a real database record.
-  if (isUuid(id) && !deterministicDummyIds.includes(id)) {
-    const isDummyName = (
-      name.includes('amit patel') ||
-      name.includes('priya singh') ||
-      name.includes('rahul sharma') ||
-      name.includes('sameer khan') ||
-      name.includes('dummy') ||
-      name.includes('test') ||
-      name.includes('mock') ||
-      name.includes('temp') ||
-      name === 'unknown patient' ||
-      name === 'unknown'
-    );
-    if (isDummyName) {
-      return true;
-    }
-    return false;
-  }
-
-  return (
-    exactDummyIds.includes(id) ||
-    id.startsWith('dummy') ||
-    id.startsWith('mock') ||
-    name.includes('amit patel') ||
-    name.includes('priya singh') ||
-    name.includes('rahul sharma') ||
-    name.includes('sameer khan') ||
-    name.includes('dummy') ||
-    name.includes('test') ||
-    name.includes('mock') ||
-    name.includes('temp') ||
-    name === 'unknown patient' ||
-    name === 'unknown'
-  );
+  return false;
 }
 
 

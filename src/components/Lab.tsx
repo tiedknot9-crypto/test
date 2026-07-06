@@ -948,20 +948,49 @@ export default function Lab() {
   };
 
   const handleExportLab = () => {
-    const headers = ['Bill ID', 'Patient', 'Date', 'Amount', 'Status'];
-    const rows = bills.map(b => [b.id, b.patients?.name || 'N/A', b.created_at, b.paid_amount, b.status]);
-    
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    let headers: string[] = [];
+    let rows: any[][] = [];
+    let filename = '';
+
+    if (activeTab === 'external') {
+      headers = ['Report ID', 'Patient Name', 'Test Name', 'Uploaded Date'];
+      rows = externalReports.map(report => [
+        report.id || '',
+        report.patentName || 'N/A',
+        report.testName || '',
+        report.date ? new Date(report.date).toLocaleDateString() : 'N/A'
+      ]);
+      filename = 'external_lab_reports.csv';
+    } else {
+      headers = ['Order ID', 'Patient Name', 'Date', 'Test Name', 'Requested By', 'Result Value', 'Reference Range', 'Status'];
+      rows = filteredOrders.map(test => [
+        test.id?.slice(0, 8) || '',
+        test.patients?.name || 'N/A',
+        test.created_at ? new Date(test.created_at).toLocaleDateString() : 'N/A',
+        test.test_name || '',
+        test.profiles?.name || 'Self/Ordered',
+        test.result_value || '-',
+        test.reference_range || 'N/A',
+        test.status || ''
+      ]);
+      filename = `${activeTab}_test_orders.csv`;
+    }
+
+    const csvContent = [headers, ...rows].map(e => e.map(val => {
+      const strVal = val === null || val === undefined ? '' : String(val);
+      return `"${strVal.replace(/"/g, '""')}"`;
+    }).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', 'lab_billing.csv');
+    a.setAttribute('download', filename);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success('Lab billing data exported');
+    toast.success(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data exported successfully`);
   };
 
   const stats = useMemo(() => {
@@ -1178,8 +1207,10 @@ export default function Lab() {
                 <Button className="bg-medical-blue flex-1 sm:flex-initial" onClick={async () => {
                   if (!checkPermission()) return;
                   if (!newBooking.patientId) return toast.error('Select patient');
+                  const selectedPat = patients.find(p => p.id === newBooking.patientId);
                   const result = await supabaseService.createAppointment({
                     patient_id: newBooking.patientId,
+                    patientName: selectedPat?.name || undefined,
                     type: newBooking.type,
                     appointment_date: newBooking.date,
                     appointment_time: newBooking.time,
