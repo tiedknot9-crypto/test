@@ -91,6 +91,7 @@ export const hasMenuAccess = (path: string, userRole: string | undefined | null)
   
   switch (path) {
     case '/':
+      return true;
     case '/opd':
       return ['DOCTOR', 'RECEPTIONIST', 'NURSE'].includes(norm);
     case '/ipd':
@@ -105,11 +106,11 @@ export const hasMenuAccess = (path: string, userRole: string | undefined | null)
       return ['DOCTOR', 'RECEPTIONIST', 'NURSE'].includes(norm);
     case '/pharmacy':
     case '/pharmacy/pos':
-      return ['PHARMACIST', 'ACCOUNTANT', 'DOCTOR', 'NURSE', 'RECEPTIONIST'].includes(norm);
+      return ['PHARMACIST', 'ACCOUNTANT'].includes(norm);
     case '/billing':
-      return ['ACCOUNTANT', 'RECEPTIONIST', 'DOCTOR', 'NURSE', 'PHARMACIST'].includes(norm);
-    case '/expenses':
       return ['ACCOUNTANT', 'RECEPTIONIST'].includes(norm);
+    case '/expenses':
+      return ['ACCOUNTANT'].includes(norm);
     case '/settings':
     case '/staff':
       return false; // restricted to admins only

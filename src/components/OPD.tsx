@@ -204,13 +204,21 @@ export default function OPD() {
   const [selectedPatientLabs, setSelectedPatientLabs] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const [prescription, setPrescription] = useState({
+  const [prescription, setPrescription] = useState<any>({
     doctor: 'Dr. Rajesh Sharma',
     date: new Date().toISOString().split('T')[0],
     medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
     advice: '',
     attachmentUrl: '',
-    attachmentName: ''
+    attachmentName: '',
+    vitals: {
+      bp: '',
+      pulse: '',
+      temp: '',
+      spo2: '',
+      weight: '',
+      rr: ''
+    }
   });
 
   const [savedPrescriptions, setSavedPrescriptions] = useState<any[]>([]);
@@ -384,6 +392,38 @@ export default function OPD() {
         date: saved.prescription_date ? saved.prescription_date.split('T')[0] : (saved.date || new Date().toISOString().split('T')[0]),
         medicines: saved.medicines || saved.medications || []
       };
+      
+      // Auto-save entered/edited vitals if any vital value is provided
+      if (prescription.vitals && (
+        prescription.vitals.bp ||
+        prescription.vitals.pulse ||
+        prescription.vitals.temp ||
+        prescription.vitals.spo2 ||
+        prescription.vitals.weight ||
+        prescription.vitals.rr
+      )) {
+        try {
+          const vData = {
+            patient_id: selectedPatient.id,
+            bp: prescription.vitals.bp || null,
+            pulse: prescription.vitals.pulse ? Number(prescription.vitals.pulse) : null,
+            temp: prescription.vitals.temp ? String(prescription.vitals.temp) : null,
+            spo2: prescription.vitals.spo2 ? Number(prescription.vitals.spo2) : null,
+            weight: prescription.vitals.weight ? Number(prescription.vitals.weight) : null,
+            rr: prescription.vitals.rr ? Number(prescription.vitals.rr) : null,
+            recorded_by: currentUser?.id || null,
+            recorded_at: new Date().toISOString()
+          };
+          const savedV = await supabaseService.updateVitals(vData);
+          if (savedV) {
+            setSelectedPatientVitals(prev => [savedV, ...prev]);
+            window.dispatchEvent(new CustomEvent('supabase-data-sync', { detail: { table: 'patient_vitals', action: 'insert' } }));
+          }
+        } catch (err) {
+          console.error('Failed to auto-save vitals from prescription:', err);
+        }
+      }
+
       setSavedPrescriptions([mappedSaved, ...savedPrescriptions]);
       toast.success(`Prescription saved for ${selectedPatient.name}`);
       setIsPrescriptionOpen(false);
@@ -396,7 +436,15 @@ export default function OPD() {
         medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
         advice: '',
         attachmentUrl: '',
-        attachmentName: ''
+        attachmentName: '',
+        vitals: {
+          bp: '',
+          pulse: '',
+          temp: '',
+          spo2: '',
+          weight: '',
+          rr: ''
+        }
       });
     } else {
       toast.error('Failed to save prescription to database');
@@ -464,7 +512,15 @@ export default function OPD() {
       medicines: [{ name: '', dosage: '', frequency: '', duration: '' }],
       advice: '',
       attachmentUrl: '',
-      attachmentName: ''
+      attachmentName: '',
+      vitals: {
+        bp: '',
+        pulse: '',
+        temp: '',
+        spo2: '',
+        weight: '',
+        rr: ''
+      }
     });
     
     setIsPrescriptionOpen(true);
@@ -482,6 +538,30 @@ export default function OPD() {
     const doctor = users.find(u => u.name === prescription.doctor);
     const latestVitals = selectedPatientVitals && selectedPatientVitals.length > 0 ? selectedPatientVitals[0] : undefined;
 
+    // Use edited vitals if present, otherwise fall back to latestVitals from history
+    const activeVitals = (prescription.vitals && (
+      prescription.vitals.bp ||
+      prescription.vitals.pulse ||
+      prescription.vitals.temp ||
+      prescription.vitals.spo2 ||
+      prescription.vitals.weight ||
+      prescription.vitals.rr
+    )) ? {
+      bp: prescription.vitals.bp,
+      pulse: prescription.vitals.pulse,
+      temp: prescription.vitals.temp,
+      spo2: prescription.vitals.spo2,
+      weight: prescription.vitals.weight,
+      rr: prescription.vitals.rr
+    } : (latestVitals ? {
+      bp: latestVitals.bp,
+      pulse: latestVitals.pulse,
+      temp: latestVitals.temp,
+      spo2: latestVitals.spo2,
+      weight: latestVitals.weight,
+      rr: latestVitals.rr || latestVitals.respiration
+    } : undefined);
+
     const html = getPrescriptionPrintHtml(
       {
         name: selectedPatient.name,
@@ -495,14 +575,7 @@ export default function OPD() {
         date: prescription.date,
         medicines: prescription.medicines,
         advice: prescription.advice,
-        vitals: latestVitals ? {
-          bp: latestVitals.bp,
-          pulse: latestVitals.pulse,
-          temp: latestVitals.temp,
-          spo2: latestVitals.spo2,
-          weight: latestVitals.weight,
-          rr: latestVitals.rr || latestVitals.respiration
-        } : undefined
+        vitals: activeVitals
       },
       doctor,
       hospitalInfo
@@ -524,6 +597,20 @@ export default function OPD() {
       
       if (vts) {
         setSelectedPatientVitals(vts);
+        if (vts.length > 0) {
+          const latest = vts[0];
+          setPrescription((prev: any) => ({
+            ...prev,
+            vitals: {
+              bp: latest.bp || '',
+              pulse: latest.pulse || '',
+              temp: latest.temp || '',
+              spo2: latest.spo2 || '',
+              weight: latest.weight || '',
+              rr: latest.rr || latest.respiration || ''
+            }
+          }));
+        }
       } else {
         setSelectedPatientVitals([]);
       }
@@ -692,6 +779,9 @@ export default function OPD() {
           urgency: 'Routine'
         });
         window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+          detail: { table: 'patients', action: 'update' } 
+        }));
       } else {
         toast.error('Failed to update patient details');
       }
@@ -801,6 +891,9 @@ export default function OPD() {
       }
 
       window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+        detail: { table: 'patients', action: 'insert' } 
+      }));
     } else {
       toast.error('Failed to register patient');
     }
@@ -956,7 +1049,10 @@ export default function OPD() {
         doctor: newAppointment.doctor,
         doctorName: newAppointment.doctor
       };
-      setAppointments([aptWithPatient, ...appointments]);
+      const updatedAptsList = [aptWithPatient, ...appointments];
+      setAppointments(updatedAptsList);
+      storage.set(STORAGE_KEYS.APPOINTMENTS, updatedAptsList);
+
       setLastToken({
         tokenNumber,
         patientName: patient?.name || "Unknown",
@@ -970,6 +1066,15 @@ export default function OPD() {
       playNotificationSound();
       setPatientSearchTerm('');
       setNewAppointment({ patientId: '', doctor: '', date: '', time: '', urgency: 'Routine', discountAmount: '0', discountGivenBy: '' });
+      
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+        detail: { table: 'appointments', action: 'insert' } 
+      }));
+      window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+        detail: { table: 'invoices', action: 'insert' } 
+      }));
+      
       toast.success('Appointment booked and token generated');
     } else {
       toast.error('Failed to book appointment');
@@ -1065,7 +1170,8 @@ export default function OPD() {
   const handlePayAppointment = async (id: string) => {
     const success = await supabaseService.updateAppointment(id, { payment_status: 'Paid' });
     if (success) {
-      setAppointments(appointments.map(a => a.id === id ? { ...a, payment_status: 'Paid' } : a));
+      const nextApts = appointments.map(a => a.id === id ? { ...a, payment_status: 'Paid' } : a);
+      setAppointments(nextApts);
       
       try {
         // Find the patient associated with this appointment to sync invoice status
@@ -1085,23 +1191,27 @@ export default function OPD() {
               return isMatchPatient && isUnpaid && isOPD;
             }) : [];
 
+            const currentBills = storage.get(STORAGE_KEYS.BILLING, []);
+            let updatedBills = [...currentBills];
+
             if (pendingOPDInvoices.length > 0) {
               for (const inv of pendingOPDInvoices) {
-                const discountVal = Number(inv.discount_amount ?? inv.discountAmount ?? apt.discount_amount ?? apt.discountAmount ?? 0);
-                const totalAmt = Number(inv.total_amount ?? inv.totalAmount ?? apt.fee ?? 0);
+                const discountVal = Number(inv.discount_amount || inv.discountAmount || apt.discount_amount || apt.discountAmount || 0);
+                const totalAmt = Number(inv.total_amount || inv.totalAmount || apt.fee || 0);
                 const payableAmt = Math.max(0, totalAmt - discountVal);
                 
-                await supabaseService.updateInvoice(
-                  inv.id, 
-                  { 
-                    ...inv, 
-                    status: 'Paid', 
-                    payment_status: 'Paid', 
-                    discount_amount: discountVal,
-                    payable_amount: payableAmt,
-                    paid_amount: payableAmt 
-                  }
-                );
+                const updatedInv = { 
+                  ...inv, 
+                  status: 'Paid', 
+                  payment_status: 'Paid', 
+                  discount_amount: discountVal,
+                  payable_amount: payableAmt,
+                  paid_amount: payableAmt 
+                };
+
+                await supabaseService.updateInvoice(inv.id, updatedInv);
+
+                updatedBills = updatedBills.map((b: any) => b.id === inv.id ? updatedInv : b);
               }
             } else {
               // Creating a Paid OPD Consultation Invoice as backup fallback so it immediately appears in Billing logs
@@ -1128,12 +1238,22 @@ export default function OPD() {
                 unit_price: baseFee,
                 total_price: baseFee
               }];
-              await supabaseService.createInvoice(invoiceData, invoiceItems);
+              const created = await supabaseService.createInvoice(invoiceData, invoiceItems);
+              if (created) {
+                updatedBills = [created, ...updatedBills];
+              }
             }
+
+            // Update local storage caches to keep everything in sync
+            storage.set(STORAGE_KEYS.APPOINTMENTS, nextApts);
+            storage.set(STORAGE_KEYS.BILLING, updatedBills);
 
             window.dispatchEvent(new Event('storage'));
             window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
               detail: { table: 'invoices', action: 'update' } 
+            }));
+            window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+              detail: { table: 'appointments', action: 'update' } 
             }));
           }
         }
@@ -1164,6 +1284,9 @@ export default function OPD() {
     }
     
     window.dispatchEvent(new Event('storage'));
+    window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+      detail: { table: 'appointments', action: 'delete' } 
+    }));
     toast.success('Appointment deleted successfully');
   };
 
@@ -1175,7 +1298,8 @@ export default function OPD() {
       refund_given_by: refundBy
     });
     if (success) {
-      setAppointments(appointments.map(a => a.id === id ? { ...a, payment_status: 'Refunded', refund_given_by: refundBy, refundGivenBy: refundBy } : a));
+      const nextApts = appointments.map(a => a.id === id ? { ...a, payment_status: 'Refunded', refund_given_by: refundBy, refundGivenBy: refundBy } : a);
+      setAppointments(nextApts);
       
       try {
         const apt = appointments.find(a => a.id === id);
@@ -1193,18 +1317,27 @@ export default function OPD() {
               return isMatchPatient && isOPD;
             }) : [];
 
+            const currentBills = storage.get(STORAGE_KEYS.BILLING, []);
+            let updatedBills = [...currentBills];
+
             if (opdInvoices.length > 0) {
               for (const inv of opdInvoices) {
-                await supabaseService.updateInvoice(
-                  inv.id, 
-                  { ...inv, status: 'Refunded', payment_status: 'Refunded' }
-                );
+                const updatedInv = { ...inv, status: 'Refunded', payment_status: 'Refunded' };
+                await supabaseService.updateInvoice(inv.id, updatedInv);
+                updatedBills = updatedBills.map((b: any) => b.id === inv.id ? updatedInv : b);
               }
             }
             
+            // Update local storage cache to keep everything in sync
+            storage.set(STORAGE_KEYS.APPOINTMENTS, nextApts);
+            storage.set(STORAGE_KEYS.BILLING, updatedBills);
+
             window.dispatchEvent(new Event('storage'));
             window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
               detail: { table: 'invoices', action: 'update' } 
+            }));
+            window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+              detail: { table: 'appointments', action: 'update' } 
             }));
           }
         }
@@ -2067,17 +2200,19 @@ export default function OPD() {
                             <CalendarIcon className="w-4 h-4 text-medical-blue" />
                             Book Appointment
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-emerald-600 h-8 gap-1.5 whitespace-nowrap" 
-                            onClick={() => {
-                              openPrescriptionModal(patient);
-                            }}
-                          >
-                            <FileText className="w-4 h-4" />
-                            Prescription
-                          </Button>
+                          {canUserEditClinicalData(currentUser?.role) && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-emerald-600 h-8 gap-1.5 whitespace-nowrap" 
+                              onClick={() => {
+                                openPrescriptionModal(patient);
+                              }}
+                            >
+                              <FileText className="w-4 h-4" />
+                              Prescription
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -2284,33 +2419,35 @@ export default function OPD() {
                               Collect ₹{Math.max(0, (apt.fee || appointmentFee) - (apt.discount_amount || apt.discountAmount || 0))}
                             </Button>
                           ) : null}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-emerald-600" 
-                            title="Write Prescription"
-                            onClick={() => {
-                              const patient = patients.find(p => p.id === apt.patientId) || 
-                                              patients.find(p => p.name === apt.patientName) ||
-                                              patients.find(p => p.mrn === apt.patientMrn);
-                              if (patient) {
-                                openPrescriptionModal(patient);
-                              } else {
-                                // Dynamic transient fallback patient so that the button is always active and functional
-                                const fallbackPatient = {
-                                  id: apt.patientId || `temp-${Math.random().toString(36).substring(2, 11)}`,
-                                  name: apt.patientName || 'Unknown Patient',
-                                  mrn: apt.patientMrn || 'N/A',
-                                  age: apt.age || apt.patientAge || '30',
-                                  gender: apt.gender || apt.patientGender || 'Male',
-                                  phone: apt.phone || apt.patientPhone || 'N/A'
-                                };
-                                openPrescriptionModal(fallbackPatient);
-                              }
-                            }}
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
+                          {canUserEditClinicalData(currentUser?.role) && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-emerald-600" 
+                              title="Write Prescription"
+                              onClick={() => {
+                                const patient = patients.find(p => p.id === apt.patientId) || 
+                                                patients.find(p => p.name === apt.patientName) ||
+                                                patients.find(p => p.mrn === apt.patientMrn);
+                                if (patient) {
+                                  openPrescriptionModal(patient);
+                                } else {
+                                  // Dynamic transient fallback patient so that the button is always active and functional
+                                  const fallbackPatient = {
+                                    id: apt.patientId || `temp-${Math.random().toString(36).substring(2, 11)}`,
+                                    name: apt.patientName || 'Unknown Patient',
+                                    mrn: apt.patientMrn || 'N/A',
+                                    age: apt.age || apt.patientAge || '30',
+                                    gender: apt.gender || apt.patientGender || 'Male',
+                                    phone: apt.phone || apt.patientPhone || 'N/A'
+                                  };
+                                  openPrescriptionModal(fallbackPatient);
+                                }
+                              }}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                          )}
                           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'DOCTOR' || currentUser?.role === 'NURSE' || currentUser?.role === 'RECEPTIONIST' || currentUser?.role === 'RECEPTION' || currentUser?.role === 'FRONT_DESK') && (
                             <Button 
                               variant="ghost" 
@@ -2501,6 +2638,90 @@ export default function OPD() {
                   value={prescription.advice}
                   onChange={(e) => setPrescription({...prescription, advice: e.target.value})}
                 />
+              </div>
+
+              {/* Patient Vitals Entry Option */}
+              <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5 mb-2">
+                  <span className="font-bold text-xs uppercase text-slate-700 tracking-wider">Patient Vitals / Measurements</span>
+                  <Badge variant="outline" className="text-[9px] text-emerald-600 bg-emerald-50 border-emerald-100 font-bold uppercase py-0 px-1.5 h-4">
+                    Vitals Option
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">BP (mmHg)</Label>
+                    <Input 
+                      placeholder="e.g. 120/80" 
+                      value={prescription.vitals?.bp || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), bp: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">Pulse (/min)</Label>
+                    <Input 
+                      placeholder="e.g. 72" 
+                      value={prescription.vitals?.pulse || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), pulse: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">Temp (°F)</Label>
+                    <Input 
+                      placeholder="e.g. 98.6" 
+                      value={prescription.vitals?.temp || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), temp: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">SpO2 (%)</Label>
+                    <Input 
+                      placeholder="e.g. 98" 
+                      value={prescription.vitals?.spo2 || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), spo2: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">Weight (kg)</Label>
+                    <Input 
+                      placeholder="e.g. 65" 
+                      value={prescription.vitals?.weight || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), weight: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-500 uppercase font-semibold">Resp Rate (/min)</Label>
+                    <Input 
+                      placeholder="e.g. 18" 
+                      value={prescription.vitals?.rr || ''} 
+                      onChange={(e) => setPrescription({
+                        ...prescription,
+                        vitals: { ...(prescription.vitals || {}), rr: e.target.value }
+                      })}
+                      className="h-9 bg-white"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

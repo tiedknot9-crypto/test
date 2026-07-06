@@ -29,8 +29,8 @@ export function useDataSync(fetchData: () => void | Promise<void>, deps: any[] =
     };
 
     const handleStorage = (event: StorageEvent) => {
-      if (event.key && event.key.startsWith('hms_')) {
-        console.log('useDataSync: Storage key updated in another tab/panel, refreshing:', event.key);
+      if (!event.key || event.key.startsWith('hms_')) {
+        console.log('useDataSync: Storage key updated or manual storage event, refreshing:', event.key || 'manual');
         fetchRef.current();
       }
     };

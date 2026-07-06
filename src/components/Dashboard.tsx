@@ -1140,10 +1140,21 @@ export default function Dashboard() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{d.dept}</span>
                 </div>
                 <div className="space-y-1.5">
-                  <p className="text-xl font-extrabold text-slate-800">{formatCurrency(d.collected)}</p>
-                  <p className="text-[10.5px] text-muted-foreground font-bold uppercase tracking-wide">
-                    {d.count} {d.label}
-                  </p>
+                  {showFinancials ? (
+                    <>
+                      <p className="text-xl font-extrabold text-slate-800">{formatCurrency(d.collected)}</p>
+                      <p className="text-[10.5px] text-muted-foreground font-bold uppercase tracking-wide">
+                        {d.count} {d.label}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xl font-extrabold text-slate-800">{d.count}</p>
+                      <p className="text-[10.5px] text-muted-foreground font-bold uppercase tracking-wide">
+                        Total {d.label} Summary
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -1151,212 +1162,214 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Front Office & Reception Walk-in Appointment Desk */}
-      <Card className="border-none shadow-md bg-gradient-to-br from-white to-slate-50/50 overflow-hidden animate-in fade-in duration-300">
-        <CardHeader className="border-b border-indigo-50/75 bg-gradient-to-r from-indigo-50/50 via-purple-50/20 to-white py-4 px-6 flex flex-row items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="p-1 px-2 rounded bg-indigo-600 text-white font-mono text-[9px] font-black uppercase tracking-widest my-0.5">
-                FO-DESK
-              </span>
-              <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
-                <Ticket className="w-5 h-5 text-indigo-600" />
-                Front Office Walk-in Appointment Desk
-              </CardTitle>
+      {/* Front Office & Reception Walk-in Appointment Desk - Only shown to Receptionists and Admins */}
+      {['RECEPTIONIST', 'RECEPTION', 'FRONT_DESK', 'ADMIN', 'SUPER_ADMIN', 'HOSPITAL_ADMIN'].includes(userRole) && (
+        <Card className="border-none shadow-md bg-gradient-to-br from-white to-slate-50/50 overflow-hidden animate-in fade-in duration-300">
+          <CardHeader className="border-b border-indigo-50/75 bg-gradient-to-r from-indigo-50/50 via-purple-50/20 to-white py-4 px-6 flex flex-row items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="p-1 px-2 rounded bg-indigo-600 text-white font-mono text-[9px] font-black uppercase tracking-widest my-0.5">
+                  FO-DESK
+                </span>
+                <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
+                  <Ticket className="w-5 h-5 text-indigo-600" />
+                  Front Office Walk-in Appointment Desk
+                </CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                Direct walk-in registration, consultation token scheduling, and live queuing for front office desks.
+              </CardDescription>
             </div>
-            <CardDescription className="text-xs">
-              Direct walk-in registration, consultation token scheduling, and live queuing for front office desks.
-            </CardDescription>
-          </div>
-          <Badge className="bg-indigo-100 hover:bg-slate-100 text-indigo-800 border-none px-2.5 py-1 text-[10px] font-bold">
-            Receptionist Authorized Section
-          </Badge>
-        </CardHeader>
+            <Badge className="bg-indigo-100 hover:bg-slate-100 text-indigo-800 border-none px-2.5 py-1 text-[10px] font-bold">
+              Receptionist Authorized Section
+            </Badge>
+          </CardHeader>
 
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Quick Scheduler Form (4 cols) */}
-            <div className="lg:col-span-5 space-y-4 bg-white p-4 rounded-2xl border border-indigo-50/50 shadow-sm text-left">
-              <h3 className="text-xs font-black text-indigo-950 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                <PlusCircle className="w-4 h-4 text-indigo-600" />
-                Schedule walk-in consult
-              </h3>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Quick Scheduler Form (4 cols) */}
+              <div className="lg:col-span-5 space-y-4 bg-white p-4 rounded-2xl border border-indigo-50/50 shadow-sm text-left">
+                <h3 className="text-xs font-black text-indigo-950 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <PlusCircle className="w-4 h-4 text-indigo-600" />
+                  Schedule walk-in consult
+                </h3>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Select Registered Patient *</Label>
-                <Select value={newApptPatientId} onValueChange={setNewApptPatientId}>
-                  <SelectTrigger className="h-9 text-xs bg-slate-50 border-none">
-                    <SelectValue placeholder="-- Select Registered Patient --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.length === 0 ? (
-                      <SelectItem value="none" disabled>No patients on record</SelectItem>
-                    ) : (
-                      patients.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} ({p.mrn || 'No MRN'}) • {p.phone || 'No Phone'}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Select Specialty OPD Doctor *</Label>
-                <Select value={newApptDoctor} onValueChange={setNewApptDoctor}>
-                  <SelectTrigger className="h-9 text-xs bg-slate-50 border-none">
-                    <SelectValue placeholder="-- Assign Specialised Doctor --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.filter(u => u.role?.toUpperCase() === 'DOCTOR' || u.role?.toUpperCase() === 'SUPER_ADMIN' || u.role?.toUpperCase() === 'SURGEON').map(doc => (
-                      <SelectItem key={doc.id} value={doc.name}>
-                        {doc.name} ({doc.department || 'General Medicine'} - {doc.degree || 'MBBS'})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Preferred Date</Label>
-                  <Input 
-                    type="date" 
-                    className="h-9 text-xs bg-slate-50 border-none" 
-                    value={newApptDate}
-                    onChange={(e) => setNewApptDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-700">Session/Time slot</Label>
-                  <Select value={newApptTime} onValueChange={setNewApptTime}>
+                  <Label className="text-xs font-bold text-slate-700">Select Registered Patient *</Label>
+                  <Select value={newApptPatientId} onValueChange={setNewApptPatientId}>
                     <SelectTrigger className="h-9 text-xs bg-slate-50 border-none">
-                      <SelectValue placeholder="Time block" />
+                      <SelectValue placeholder="-- Select Registered Patient --" />
                     </SelectTrigger>
                     <SelectContent>
-                      {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'].map(time => (
-                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                      {patients.length === 0 ? (
+                        <SelectItem value="none" disabled>No patients on record</SelectItem>
+                      ) : (
+                        patients.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.mrn || 'No MRN'}) • {p.phone || 'No Phone'}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">Select Specialty OPD Doctor *</Label>
+                  <Select value={newApptDoctor} onValueChange={setNewApptDoctor}>
+                    <SelectTrigger className="h-9 text-xs bg-slate-50 border-none">
+                      <SelectValue placeholder="-- Assign Specialised Doctor --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.filter(u => u.role?.toUpperCase() === 'DOCTOR' || u.role?.toUpperCase() === 'SUPER_ADMIN' || u.role?.toUpperCase() === 'SURGEON').map(doc => (
+                        <SelectItem key={doc.id} value={doc.name}>
+                          {doc.name} ({doc.department || 'General Medicine'} - {doc.degree || 'MBBS'})
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-slate-700">Consultation Urgency</Label>
-                <div className="grid grid-cols-3 gap-1">
-                  {['Routine', 'Urgent', 'Emergency'].map(level => (
-                    <Button
-                      key={level}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className={`h-8 text-[11px] border px-1 ${
-                        newApptUrgency === level 
-                          ? level === 'Emergency' 
-                            ? 'bg-rose-600 border-none text-white hover:bg-rose-700' 
-                            : level === 'Urgent' 
-                              ? 'bg-amber-500 border-none text-white hover:bg-amber-600'
-                              : 'bg-indigo-600 border-none text-white hover:bg-indigo-700'
-                          : 'bg-white hover:bg-slate-50'
-                      }`}
-                      onClick={() => setNewApptUrgency(level)}
-                    >
-                      {level}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <Button 
-                onClick={handleQuickBook}
-                className="w-full h-10 font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-2 mt-2 shadow-md"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Confirm Walk-in Booking & Print Token
-              </Button>
-            </div>
-
-            {/* Live Board Queue (7 cols) */}
-            <div className="lg:col-span-7 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black text-indigo-950 uppercase tracking-widest flex items-center gap-1.5 font-mono">
-                  <CheckCircle2 className="w-4 h-4 text-indigo-600 animate-pulse" />
-                  Live Operational Daily Queue
-                </h3>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-black">
-                  Total Active: {appointments.length}
-                </span>
-              </div>
-
-              <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 min-h-[300px] border border-slate-800/80 shadow-inner overflow-hidden flex flex-col justify-between">
-                <div>
-                  <div className="grid grid-cols-4 text-[10px] font-black text-slate-500 uppercase tracking-wider pb-2 border-b border-slate-800/60 mb-2 font-mono">
-                    <span>Patient / MRN</span>
-                    <span>OPD Doctor / Dept</span>
-                    <span>Scheduled Time</span>
-                    <span className="text-right">Urgency / Token</span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Preferred Date</Label>
+                    <Input 
+                      type="date" 
+                      className="h-9 text-xs bg-slate-50 border-none" 
+                      value={newApptDate}
+                      onChange={(e) => setNewApptDate(e.target.value)}
+                    />
                   </div>
-
-                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                    {appointments.length === 0 ? (
-                      <div className="h-32 flex flex-col items-center justify-center text-slate-400 text-center">
-                        <Ticket className="w-8 h-8 opacity-20 mb-1" />
-                        <p className="text-xs italic text-slate-500">No walk-in bookings registered today.</p>
-                      </div>
-                    ) : (
-                      appointments.slice(0, 5).map((apt: any) => {
-                        const patName = apt.patientName || (patients.find(p => p.id === apt.patient_id || p.id === apt.patientId)?.name) || 'WALK-IN';
-                        const patMRN = apt.patientMrn || (patients.find(p => p.id === apt.patient_id || p.id === apt.patientId)?.mrn) || 'EMERG';
-                        const tokNum = apt.token || `TK-${apt.id?.slice(-3).toUpperCase() || '099'}`;
-
-                        return (
-                          <div key={apt.id} className="grid grid-cols-4 items-center text-xs py-1.5 border-b border-slate-800/40 hover:bg-slate-800/20 rounded px-1 transition-colors text-left font-mono">
-                            <div>
-                              <p className="font-bold text-slate-200 truncate">{patName}</p>
-                              <p className="text-[9px] text-slate-500">MRN: {patMRN}</p>
-                            </div>
-                            <div className="text-slate-300">
-                              <p className="truncate font-black text-indigo-200">{apt.doctor || 'OPD Consultant'}</p>
-                              <p className="text-[9px] text-slate-500">General OPD</p>
-                            </div>
-                            <div className="text-slate-300 text-left">
-                              <p className="font-bold">{new Date(apt.appointment_date).toLocaleDateString()}</p>
-                              <p className="text-[10px] font-black tracking-tighter text-indigo-400">{apt.appointment_time}</p>
-                            </div>
-                            <div className="text-right flex flex-col items-end gap-1">
-                              <span className={`text-[8px] font-black px-1.5 rounded uppercase ${
-                                apt.urgency === 'Emergency' 
-                                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/20' 
-                                  : apt.urgency === 'Urgent' 
-                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' 
-                                    : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/20'
-                              }`}>
-                                {apt.urgency || 'Routine'}
-                              </span>
-                              <Badge className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 text-[9px] px-1 font-bold">
-                                {tokNum}
-                              </Badge>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-slate-700">Session/Time slot</Label>
+                    <Select value={newApptTime} onValueChange={setNewApptTime}>
+                      <SelectTrigger className="h-9 text-xs bg-slate-50 border-none">
+                        <SelectValue placeholder="Time block" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'].map(time => (
+                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                  <span>Showing daily bookings logged on active receptionist counters.</span>
-                  <Link to="/opd" className="text-indigo-400 font-bold hover:underline flex items-center gap-1">
-                    Manage Full OPD Desk & Queue →
-                  </Link>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">Consultation Urgency</Label>
+                  <div className="grid grid-cols-3 gap-1">
+                    {['Routine', 'Urgent', 'Emergency'].map(level => (
+                      <Button
+                        key={level}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className={`h-8 text-[11px] border px-1 ${
+                          newApptUrgency === level 
+                            ? level === 'Emergency' 
+                              ? 'bg-rose-600 border-none text-white hover:bg-rose-700' 
+                              : level === 'Urgent' 
+                                ? 'bg-amber-500 border-none text-white hover:bg-amber-600'
+                                : 'bg-indigo-600 border-none text-white hover:bg-indigo-700'
+                            : 'bg-white hover:bg-slate-50'
+                        }`}
+                        onClick={() => setNewApptUrgency(level)}
+                      >
+                        {level}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleQuickBook}
+                  className="w-full h-10 font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-2 mt-2 shadow-md"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Confirm Walk-in Booking & Print Token
+                </Button>
+              </div>
+
+              {/* Live Board Queue (7 cols) */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-black text-indigo-950 uppercase tracking-widest flex items-center gap-1.5 font-mono">
+                    <CheckCircle2 className="w-4 h-4 text-indigo-600 animate-pulse" />
+                    Live Operational Daily Queue
+                  </h3>
+                  <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-black">
+                    Total Active: {appointments.length}
+                  </span>
+                </div>
+
+                <div className="bg-slate-900 text-slate-100 rounded-2xl p-4 min-h-[300px] border border-slate-800/80 shadow-inner overflow-hidden flex flex-col justify-between">
+                  <div>
+                    <div className="grid grid-cols-4 text-[10px] font-black text-slate-500 uppercase tracking-wider pb-2 border-b border-slate-800/60 mb-2 font-mono">
+                      <span>Patient / MRN</span>
+                      <span>OPD Doctor / Dept</span>
+                      <span>Scheduled Time</span>
+                      <span className="text-right">Urgency / Token</span>
+                    </div>
+
+                    <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                      {appointments.length === 0 ? (
+                        <div className="h-32 flex flex-col items-center justify-center text-slate-400 text-center">
+                          <Ticket className="w-8 h-8 opacity-20 mb-1" />
+                          <p className="text-xs italic text-slate-500">No walk-in bookings registered today.</p>
+                        </div>
+                      ) : (
+                        appointments.slice(0, 5).map((apt: any) => {
+                          const patName = apt.patientName || (patients.find(p => p.id === apt.patient_id || p.id === apt.patientId)?.name) || 'WALK-IN';
+                          const patMRN = apt.patientMrn || (patients.find(p => p.id === apt.patient_id || p.id === apt.patientId)?.mrn) || 'EMERG';
+                          const tokNum = apt.token || `TK-${apt.id?.slice(-3).toUpperCase() || '099'}`;
+
+                          return (
+                            <div key={apt.id} className="grid grid-cols-4 items-center text-xs py-1.5 border-b border-slate-800/40 hover:bg-slate-800/20 rounded px-1 transition-colors text-left font-mono">
+                              <div>
+                                <p className="font-bold text-slate-200 truncate">{patName}</p>
+                                <p className="text-[9px] text-slate-500">MRN: {patMRN}</p>
+                              </div>
+                              <div className="text-slate-300">
+                                <p className="truncate font-black text-indigo-200">{apt.doctor || 'OPD Consultant'}</p>
+                                <p className="text-[9px] text-slate-500">General OPD</p>
+                              </div>
+                              <div className="text-slate-300 text-left">
+                                <p className="font-bold">{new Date(apt.appointment_date).toLocaleDateString()}</p>
+                                <p className="text-[10px] font-black tracking-tighter text-indigo-400">{apt.appointment_time}</p>
+                              </div>
+                              <div className="text-right flex flex-col items-end gap-1">
+                                <span className={`text-[8px] font-black px-1.5 rounded uppercase ${
+                                  apt.urgency === 'Emergency' 
+                                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/20' 
+                                    : apt.urgency === 'Urgent' 
+                                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' 
+                                      : 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/20'
+                                }`}>
+                                  {apt.urgency || 'Routine'}
+                                </span>
+                                <Badge className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 text-[9px] px-1 font-bold">
+                                  {tokNum}
+                                </Badge>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                    <span>Showing daily bookings logged on active receptionist counters.</span>
+                    <Link to="/opd" className="text-indigo-400 font-bold hover:underline flex items-center gap-1">
+                      Manage Full OPD Desk & Queue →
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className={`grid grid-cols-1 ${showFinancials ? 'md:grid-cols-2' : ''} gap-4`}>
         {showFinancials && (

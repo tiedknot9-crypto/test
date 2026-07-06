@@ -1825,6 +1825,9 @@ const rawSupabaseService = {
       storage.set(STORAGE_KEYS.BILLING, updatedBills);
       
       window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+        detail: { table: 'invoices', action: 'update' } 
+      }));
       return mappedUpdated;
     } catch (error: any) {
       console.error('Error recording payment in DB:', error.message);
@@ -1862,6 +1865,9 @@ const rawSupabaseService = {
         });
         storage.set(STORAGE_KEYS.BILLING, updatedBills);
         window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('supabase-data-sync', { 
+          detail: { table: 'invoices', action: 'update' } 
+        }));
         
         const updatedMock = updatedBills.find((b: any) => b.id === id);
         return updatedMock;
