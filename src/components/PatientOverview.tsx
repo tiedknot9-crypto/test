@@ -1600,39 +1600,67 @@ View full details at: ${shareUrl}
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Billed</p>
-                        <p className="text-lg font-bold">{formatCurrency(patientBills.reduce((acc, b) => acc + Number(b.payable_amount ?? b.payableAmount ?? b.total_amount ?? b.totalAmount ?? 0), 0))}</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                        <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Total Paid</p>
-                        <p className="text-lg font-bold text-emerald-700">{formatCurrency(patientBills.reduce((acc, b) => acc + Number(b.paid_amount ?? b.paidAmount ?? 0), 0))}</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-rose-50 border border-rose-100">
-                        <p className="text-[10px] font-bold text-rose-600 uppercase mb-1">Total Dues</p>
-                        <p className="text-lg font-bold text-rose-700">{formatCurrency(dues)}</p>
-                      </div>
-                    </div>
+                    {(() => {
+                      const totalDiscount = patientBills.reduce((acc, b) => acc + Number(b.discount_amount ?? b.discountAmount ?? b.discount ?? 0), 0);
+                      return (
+                        <div className={`grid grid-cols-1 ${totalDiscount > 0 ? 'sm:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-4`}>
+                          <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Total Billed</p>
+                            <p className="text-lg font-bold">{formatCurrency(patientBills.reduce((acc, b) => acc + Number(b.payable_amount ?? b.payableAmount ?? b.total_amount ?? b.totalAmount ?? 0), 0))}</p>
+                          </div>
+                          {totalDiscount > 0 && (
+                            <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                              <p className="text-[10px] font-bold text-amber-600 uppercase mb-1">Total Discount</p>
+                              <p className="text-lg font-bold text-amber-700">{formatCurrency(totalDiscount)}</p>
+                            </div>
+                          )}
+                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                            <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Total Paid</p>
+                            <p className="text-lg font-bold text-emerald-700">{formatCurrency(patientBills.reduce((acc, b) => acc + Number(b.paid_amount ?? b.paidAmount ?? 0), 0))}</p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-rose-50 border border-rose-100">
+                            <p className="text-[10px] font-bold text-rose-600 uppercase mb-1">Total Dues</p>
+                            <p className="text-lg font-bold text-rose-700">{formatCurrency(dues)}</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     
                     <div className="space-y-2">
-                      {patientBills.map(bill => (
-                        <div key={bill.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${bill.status === 'Paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
-                              {bill.status === 'Paid' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                            </div>
-                            <div>
-                               <p className="text-sm font-bold">Invoice #{bill.invoice_number || bill.id.toUpperCase()}</p>
-                               <p className="text-[10px] text-slate-500">{formatDate(bill.created_at)} • {bill.payment_method || 'N/A'}</p>
+                      {patientBills.map(bill => {
+                        const discVal = Number(bill.discount_amount ?? bill.discountAmount ?? bill.discount ?? 0);
+                        const grossAmount = Number(bill.total_amount ?? bill.totalAmount ?? 0);
+                        const netAmount = Number(bill.payable_amount ?? bill.payableAmount ?? (grossAmount - discVal));
+                        return (
+                          <div key={bill.id} className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${bill.status === 'Paid' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                {bill.status === 'Paid' ? <CheckCircle2 className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                              </div>
+                              <div>
+                                 <p className="text-sm font-bold">Invoice #{bill.invoice_number || bill.id.toUpperCase()}</p>
+                                 <p className="text-[10px] text-slate-500">{formatDate(bill.created_at)} • {bill.payment_method || 'N/A'}</p>
+                               </div>
                              </div>
-                           </div>
-                           <div className="text-right">
-                             <p className="text-sm font-bold">{formatCurrency(bill.total_amount)}</p>
-                             <Badge variant="outline" className="text-[9px] uppercase">{bill.payment_status}</Badge>
-                           </div>
-                        </div>
-                      ))}
+                             <div className="text-right flex flex-col items-end">
+                               {discVal > 0 ? (
+                                 <div className="flex flex-col items-end">
+                                   <span className="text-[10px] text-slate-400 line-through leading-tight">
+                                     {formatCurrency(grossAmount)}
+                                   </span>
+                                   <span className="text-[10px] text-emerald-600 font-semibold leading-tight">
+                                     -{formatCurrency(discVal)} Disc
+                                   </span>
+                                   <p className="text-sm font-bold text-slate-900 leading-tight">{formatCurrency(netAmount)}</p>
+                                 </div>
+                               ) : (
+                                 <p className="text-sm font-bold text-slate-900">{formatCurrency(grossAmount)}</p>
+                               )}
+                               <Badge variant="outline" className="text-[9px] uppercase mt-1">{bill.payment_status || bill.status}</Badge>
+                             </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </CardContent>
