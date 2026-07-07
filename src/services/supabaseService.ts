@@ -4386,6 +4386,22 @@ function executeOfflineMutation(key: string, args: any[]): any {
 }
 
 function executeOfflineQuery(key: string, args: any[]): any {
+  if (key === 'getDashboardStats') {
+    const patients = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS).filter((p: any) => !isDummyPatient(p));
+    const appointments = storage.get(STORAGE_KEYS.APPOINTMENTS, MOCK_APPOINTMENTS).filter((a: any) => !isDummyPatient({ id: a.patientId || a.patient_id, name: a.patientName || a.patient_name }));
+    const bills = storage.get(STORAGE_KEYS.BILLING, MOCK_BILLING).filter((b: any) => !isDummyPatient({ id: b.patientId || b.patient_id, name: b.patientName || b.patient_name }));
+    const admissions = storage.get('hms_admissions', []).filter((a: any) => !isDummyPatient({ id: a.patientId || a.patient_id, name: a.patientName || a.patient_name }));
+    const activeAdmissions = admissions.filter((a: any) => a.status === 'Admitted');
+    
+    const totalRevenue = bills.reduce((sum: number, b: any) => sum + (Number(b.paid_amount) || Number(b.total_amount) || Number(b.total) || 0), 0);
+    return {
+      patientCount: patients.length,
+      appointmentCount: appointments.length,
+      admissionCount: activeAdmissions.length,
+      totalRevenue
+    };
+  }
+
   const config = cacheConfig[key];
   if (config) {
     let cached = storage.get(config.storageKey, config.defaultVal);
@@ -4504,22 +4520,6 @@ function executeOfflineQuery(key: string, args: any[]): any {
     return cached;
   }
   
-  if (key === 'getDashboardStats') {
-    const patients = storage.get(STORAGE_KEYS.PATIENTS, MOCK_PATIENTS).filter((p: any) => !isDummyPatient(p));
-    const appointments = storage.get(STORAGE_KEYS.APPOINTMENTS, MOCK_APPOINTMENTS).filter((a: any) => !isDummyPatient({ id: a.patientId || a.patient_id, name: a.patientName || a.patient_name }));
-    const bills = storage.get(STORAGE_KEYS.BILLING, MOCK_BILLING).filter((b: any) => !isDummyPatient({ id: b.patientId || b.patient_id, name: b.patientName || b.patient_name }));
-    const admissions = storage.get('hms_admissions', []).filter((a: any) => !isDummyPatient({ id: a.patientId || a.patient_id, name: a.patientName || a.patient_name }));
-    const activeAdmissions = admissions.filter((a: any) => a.status === 'Admitted');
-    
-    const totalRevenue = bills.reduce((sum: number, b: any) => sum + (Number(b.paid_amount) || Number(b.total_amount) || Number(b.total) || 0), 0);
-    return {
-      patientCount: patients.length,
-      appointmentCount: appointments.length,
-      admissionCount: activeAdmissions.length,
-      totalRevenue
-    };
-  }
-  
   return null;
 }
 
@@ -4532,7 +4532,7 @@ function isNetworkFailure(err: any): boolean {
   if (!err) return false;
   // If we have a PostgreSQL specific error code, it means we reached the server and it rejected the query
   if (err.code) return false;
-  const msg = (err.message || '').toLowerCase();
+  const msg = (typeof err === 'string' ? err : (err.message || err.error_description || err.error || String(err))).toLowerCase();
   return (
     msg.includes('timeout') ||
     msg.includes('fetch') ||
@@ -4540,7 +4540,8 @@ function isNetworkFailure(err: any): boolean {
     msg.includes('unreachable') ||
     msg.includes('failed to connect') ||
     msg.includes('connection refused') ||
-    msg.includes('abort')
+    msg.includes('abort') ||
+    msg.includes('failed')
   );
 }
 
@@ -4666,8 +4667,8 @@ for (const [key, value] of Object.entries(rawSupabaseService)) {
             return executeOfflineMutation(key, args);
           }
         } catch (err: any) {
-          const msg = (err.message || '').toLowerCase();
-          const isNetworkIssue = isNetworkFailure(err) || msg.includes('timeout') || msg.includes('fetch');
+          const msg = (typeof err === 'string' ? err : (err.message || err.error_description || err.error || String(err))).toLowerCase();
+          const isNetworkIssue = isNetworkFailure(err) || msg.includes('timeout') || msg.includes('fetch') || msg.includes('failed');
           
           if (isNetworkIssue) {
             console.warn(`[Supabase Mutation Warning] Mutation ${key} timed out or network failed. Executing offline fallback to maintain UI state.`);
@@ -4735,8 +4736,8 @@ for (const [key, value] of Object.entries(rawSupabaseService)) {
             return null;
           }
         } catch (err: any) {
-          const msg = (err.message || '').toLowerCase();
-          const isNetworkIssue = isNetworkFailure(err) || msg.includes('timeout') || msg.includes('fetch');
+          const msg = (typeof err === 'string' ? err : (err.message || err.error_description || err.error || String(err))).toLowerCase();
+          const isNetworkIssue = isNetworkFailure(err) || msg.includes('timeout') || msg.includes('fetch') || msg.includes('failed');
           
           if (isNetworkIssue) {
             console.warn(`[Supabase Query Warning] Query ${key} timed out or network failed. Falling back to offline cached storage representation.`);

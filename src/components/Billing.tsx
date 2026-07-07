@@ -1271,127 +1271,27 @@ export default function Billing() {
   };
 
   const handleExportBilling = () => {
-    let headers: string[] = [];
-    let rows: any[][] = [];
-    let filename = 'hospital_billing.csv';
-
-    if (activeTab === 'opd-collection') {
-      const mappedApts = appointments.map((apt: any) => {
-        const pId = apt.patient_id || apt.patientId;
-        const matchedPatient = patients.find((p: any) => 
-          p.id === pId || 
-          p.mrn === pId || 
-          (p.id && pId && String(p.id).replace(/[^0-9a-zA-Z]/g, '') === String(pId).replace(/[^0-9a-zA-Z]/g, ''))
-        );
-        
-        const docId = apt.doctor_id || apt.doctorId;
-        const doc = users.find((u: any) => 
-          u.id === docId || 
-          u.name === apt.doctor || 
-          u.name === apt.doctorName ||
-          (u.id && docId && String(u.id).replace(/[^0-9a-zA-Z]/g, '') === String(docId).replace(/[^0-9a-zA-Z]/g, ''))
-        );
-        
-        const aptDate = apt.appointment_date || apt.date || '';
-        const dateStr = typeof aptDate === 'string' ? aptDate.split('T')[0] : '';
-        
-        return {
-          ...apt,
-          id: apt.id,
-          patientName: matchedPatient?.name || apt.patientName || 'Unknown',
-          patientPhone: matchedPatient?.phone || apt.patientPhone || 'N/A',
-          patientMrn: matchedPatient?.mrn || apt.patientMrn || 'N/A',
-          doctor: doc?.name || apt.doctor || apt.doctorName || 'GP / Duty Doctor',
-          doctorDepartment: doc?.department || apt.doctorDepartment || 'General Medicine',
-          dateStr,
-          fee: Number(apt.fee || 500),
-          discountAmount: Number(apt.discount_amount || apt.discountAmount || 0),
-          discountGivenBy: apt.discount_given_by || apt.discountGivenBy || null,
-          refundGivenBy: apt.refund_given_by || apt.refundGivenBy || null,
-          paymentStatus: apt.payment_status || 'Pending'
-        };
-      }).filter((apt: any) => {
-        const pId = apt.patient_id || apt.patientId;
-        const matchedPatient = patients.find((p: any) => 
-          p.id === pId || 
-          p.mrn === pId || 
-          (p.id && pId && String(p.id).replace(/[^0-9a-zA-Z]/g, '') === String(pId).replace(/[^0-9a-zA-Z]/g, ''))
-        );
-        const patObj = matchedPatient || { id: pId, name: apt.patientName, phone: apt.patientPhone };
-        return !isDummyPatient(patObj);
-      });
-
-      const filteredApts = mappedApts.filter((apt: any) => {
-        if (apt.paymentStatus !== 'Paid' && apt.paymentStatus !== 'Refunded') return false;
-        if (opdStartDate && apt.dateStr < opdStartDate) return false;
-        if (opdEndDate && apt.dateStr > opdEndDate) return false;
-        if (opdDoctorFilter !== 'all' && apt.doctor !== opdDoctorFilter) return false;
-        return true;
-      });
-
-      headers = ['Appointment ID', 'Patient Name', 'Patient MRN', 'Doctor', 'Department', 'Date', 'Consultation Fee', 'Discount', 'Payment Status'];
-      rows = filteredApts.map(apt => [
-        apt.id || '',
-        apt.patientName,
-        apt.patientMrn,
-        apt.doctor,
-        apt.doctorDepartment,
-        apt.dateStr,
-        apt.fee,
-        apt.discountAmount,
-        apt.paymentStatus
-      ]);
-      filename = `opd_collections_${opdStartDate || 'all'}_to_${opdEndDate || 'all'}.csv`;
-
-    } else if (activeTab === 'consolidated') {
-      const selectedPatientData = patients.find(p => p.id === conPatientId);
-      if (!selectedPatientData) {
-        toast.error('Please select a patient first to export their consolidated ledger.');
-        return;
-      }
-      const conPatientInvoices = bills.filter(b => b.patient_id === conPatientId || b.patientId === conPatientId);
-      
-      headers = ['Invoice ID', 'Type/Source', 'Date', 'Amount', 'Discount', 'Paid Amount', 'Status'];
-      rows = conPatientInvoices.map(b => [
-        b.id || '',
-        b.type || b.department || 'Billing',
-        b.created_at || b.date || '',
-        b.total_amount || b.payable_amount || b.paid_amount || 0,
-        b.discount_amount || b.discount || 0,
-        b.paid_amount || 0,
-        b.status || b.payment_status || ''
-      ]);
-      filename = `consolidated_ledger_${selectedPatientData.name.replace(/\s+/g, '_')}.csv`;
-
-    } else {
-      headers = ['Invoice ID', 'Patient Name', 'Patient MRN', 'Date', 'Amount', 'Status', 'Mode'];
-      rows = filteredBills.map(b => [
-        b.id || '',
-        b.patients?.name || b.patientName || 'N/A',
-        b.patients?.mrn || b.patientMrn || 'N/A',
-        b.created_at || b.date || '',
-        b.total_amount || b.payable_amount || b.paid_amount || 0,
-        b.status || b.payment_status || '',
-        b.payment_method || b.paymentMethod || 'N/A'
-      ]);
-      filename = 'hospital_billing.csv';
-    }
-
-    const csvContent = [headers, ...rows].map(e => e.map(val => {
-      const strVal = val === null || val === undefined ? '' : String(val);
-      return `"${strVal.replace(/"/g, '""')}"`;
-    }).join(",")).join("\n");
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const headers = ['Invoice ID', 'Patient MRN', 'Date', 'Amount', 'Status', 'Mode'];
+    const rows = bills.map(b => [
+      b.id,
+      b.patients?.mrn || 'N/A',
+      b.created_at,
+      b.total_amount,
+      b.status,
+      b.payment_method || 'N/A'
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.setAttribute('hidden', '');
     a.setAttribute('href', url);
-    a.setAttribute('download', filename);
+    a.setAttribute('download', 'hospital_billing.csv');
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success('Data exported successfully');
+    toast.success('Billing data exported');
   };
 
   const handleEditBill = (bill: any) => {

@@ -62,6 +62,14 @@ import { useDataSync } from '@/hooks/useDataSync';
 import { canUserEditRecord, canUserEditClinicalData, canUserManageBilling, normalizeRole, canUserModifyRecord } from '@/utils/rbac';
 import { getPrescriptionPrintHtml } from '@/lib/prescriptionPrint';
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function OPD() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'queue' | 'appointments' | 'patients' | 'summary'>('queue');
@@ -963,7 +971,7 @@ export default function OPD() {
 
     const patient = patients.find(p => p.id === newAppointment.patientId);
     const tokenNumber = `APT-${Math.floor(Math.random() * 900) + 100}`;
-    const appointmentDate = newAppointment.date || new Date().toISOString().split('T')[0];
+    const appointmentDate = newAppointment.date || getLocalDateString();
     
     const synced = await supabaseService.createAppointment({
       patient_id: newAppointment.patientId,
@@ -982,7 +990,7 @@ export default function OPD() {
 
     if (synced) {
       // Save inside separate Live Queue database table if appointment is for today
-      const isToday = appointmentDate === new Date().toISOString().split('T')[0];
+      const isToday = appointmentDate === getLocalDateString();
       if (isToday) {
         try {
           await supabaseService.createLiveQueueItem({
@@ -1442,7 +1450,7 @@ export default function OPD() {
     } else {
       const filteredAppointments = appointments
         .filter(apt => {
-          const aptDate = typeof apt.appointment_date === 'string' ? apt.appointment_date : new Date(apt.appointment_date).toISOString().split('T')[0];
+          const aptDate = typeof apt.appointment_date === 'string' ? apt.appointment_date : new Date(apt.appointment_date).toLocaleDateString('sv').split(' ')[0];
           
           if (fromDateFilter || toDateFilter) {
             if (fromDateFilter && aptDate < fromDateFilter) {
@@ -1455,7 +1463,7 @@ export default function OPD() {
           }
 
           if (activeTab === 'queue') {
-            const targetDate = selectedDateFilter || new Date().toISOString().split('T')[0];
+            const targetDate = selectedDateFilter || getLocalDateString();
             return aptDate === targetDate;
           }
           if (selectedDateFilter) {
@@ -2383,7 +2391,7 @@ export default function OPD() {
                 <TableBody>
                   {appointments
                     .filter(apt => {
-                      const aptDate = typeof apt.appointment_date === 'string' ? apt.appointment_date : new Date(apt.appointment_date).toISOString().split('T')[0];
+                      const aptDate = typeof apt.appointment_date === 'string' ? apt.appointment_date : new Date(apt.appointment_date).toLocaleDateString('sv').split(' ')[0];
                       
                       // Filter by Date Range if specified
                       if (fromDateFilter || toDateFilter) {
@@ -2397,7 +2405,7 @@ export default function OPD() {
                       }
 
                       if (activeTab === 'queue') {
-                        const targetDate = selectedDateFilter || new Date().toISOString().split('T')[0];
+                        const targetDate = selectedDateFilter || getLocalDateString();
                         return aptDate === targetDate;
                       }
                       // For appointments tab:

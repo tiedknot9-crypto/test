@@ -67,6 +67,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Dashboard() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<{url: string, name: string} | null>(null);
@@ -87,7 +95,7 @@ export default function Dashboard() {
   // Walk-in Quick Appointment States
   const [newApptPatientId, setNewApptPatientId] = useState('');
   const [newApptDoctor, setNewApptDoctor] = useState('');
-  const [newApptDate, setNewApptDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newApptDate, setNewApptDate] = useState(() => getLocalDateString());
   const [newApptTime, setNewApptTime] = useState('10:00 AM');
   const [newApptUrgency, setNewApptUrgency] = useState('Routine');
 
@@ -536,7 +544,7 @@ export default function Dashboard() {
       // Doctor role specific dashboards
       const myAppointmentsToday = appointments.filter((apt: any) => {
         const aptDate = apt.appointment_date || apt.date || '';
-        const isToday = aptDate.includes(new Date().toISOString().split('T')[0]);
+        const isToday = aptDate.includes(getLocalDateString());
         const isMe = apt.doctor_id === currentUser?.id || apt.doctor === currentUser?.name || apt.doctorName === currentUser?.name;
         return isToday && isMe;
       }).length;
@@ -584,7 +592,7 @@ export default function Dashboard() {
       // Receptionist role specific dashboards
       const todayAppointments = appointments.filter((apt: any) => {
         const aptDate = apt.appointment_date || apt.date || '';
-        return aptDate.includes(new Date().toISOString().split('T')[0]);
+        return aptDate.includes(getLocalDateString());
       }).length;
       const totalRegister = patients.length;
       const bedsStatusStr = `${availableBeds} free beds`;
@@ -599,7 +607,7 @@ export default function Dashboard() {
       // Accountant/Accounts role specific dashboards
       const todayPaidInvoices = filteredBilling.filter((b: any) => {
         const dateStr = b.created_at || b.date;
-        const isToday = dateStr && dateStr.includes(new Date().toISOString().split('T')[0]);
+        const isToday = dateStr && dateStr.includes(getLocalDateString());
         return isToday && (b.status === 'Paid' || b.status?.toLowerCase() === 'paid');
       });
       const todayIncome = todayPaidInvoices.reduce((acc, b) => acc + (Number(b.paid_amount ?? b.paidAmount ?? 0)), 0);
