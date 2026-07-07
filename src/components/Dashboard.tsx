@@ -42,7 +42,7 @@ import { Link } from 'react-router-dom';
 import { MOCK_PRESCRIPTIONS, MOCK_PATIENTS, MOCK_USERS, MOCK_BILLING, MOCK_PHARMACY_BILLING, MOCK_APPOINTMENTS } from '@/mockData';
 import { FileText, Download, Eye, TrendingDown } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
-import { supabaseService } from '@/services/supabaseService';
+import { supabaseService, toDeterministicUuid } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
 import { Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
@@ -69,6 +69,19 @@ import {
 
 const getLocalDateString = () => {
   const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getLocalDateStrFromVal = (val: any): string => {
+  if (!val) return '';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    return val;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -159,10 +172,12 @@ export default function Dashboard() {
           const pId = apt.patient_id || apt.patientId;
           const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
 
-          const hasInvoice = mappedInvoices.some((inv: any) => {
+           const hasInvoice = mappedInvoices.some((inv: any) => {
             const invPid = inv.patient_id || inv.patientId;
+            const cleanInvPid = toDeterministicUuid(invPid);
+            const cleanAptPid = toDeterministicUuid(pId);
             const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
-            return invPid === pId && (invDateStr === aptDateStr || inv.type === 'OPD');
+            return cleanInvPid === cleanAptPid && (invDateStr === aptDateStr || inv.type === 'OPD');
           });
 
           if (!hasInvoice) {
@@ -289,34 +304,34 @@ export default function Dashboard() {
     return invoices.filter(bill => {
       const dateVal = bill.created_at || bill.date;
       if (!dateVal) return false;
-      const billDate = new Date(dateVal);
-      if (isNaN(billDate.getTime())) return false;
+      const billLocalDateStr = getLocalDateStrFromVal(dateVal);
+      if (!billLocalDateStr) return false;
+      
+      const [y, m] = billLocalDateStr.split('-').map(Number);
       
       if (timeFrame === 'today') {
-        const today = new Date();
-        return billDate.getDate() === today.getDate() && 
-               billDate.getMonth() === today.getMonth() && 
-               billDate.getFullYear() === today.getFullYear();
+        const todayStr = getLocalDateStrFromVal(new Date());
+        return billLocalDateStr === todayStr;
       }
       
       if (timeFrame === 'month') {
-        return billDate.getMonth() === now.getMonth() && billDate.getFullYear() === now.getFullYear();
+        return m === (now.getMonth() + 1) && y === now.getFullYear();
       }
       
       if (timeFrame === 'quarter') {
         const currentQuarter = Math.floor(now.getMonth() / 3);
-        const billQuarter = Math.floor(billDate.getMonth() / 3);
-        return currentQuarter === billQuarter && billDate.getFullYear() === now.getFullYear();
+        const billQuarter = Math.floor((m - 1) / 3);
+        return currentQuarter === billQuarter && y === now.getFullYear();
       }
       
       if (timeFrame === 'year') {
-        return billDate.getFullYear() === now.getFullYear();
+        return y === now.getFullYear();
       }
 
       if (timeFrame === 'custom' && dateRange.start && dateRange.end) {
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        return billDate >= start && billDate <= end;
+        const start = getLocalDateStrFromVal(dateRange.start);
+        const end = getLocalDateStrFromVal(dateRange.end);
+        return billLocalDateStr >= start && billLocalDateStr <= end;
       }
       
       return true; // default/all
@@ -328,33 +343,36 @@ export default function Dashboard() {
     const now = new Date(); 
     
     return expenses.filter(exp => {
-      const expDate = new Date(exp.expense_date);
+      const dateVal = exp.expense_date;
+      if (!dateVal) return false;
+      const expLocalDateStr = getLocalDateStrFromVal(dateVal);
+      if (!expLocalDateStr) return false;
+      
+      const [y, m] = expLocalDateStr.split('-').map(Number);
       
       if (timeFrame === 'today') {
-        const today = new Date();
-        return expDate.getDate() === today.getDate() && 
-               expDate.getMonth() === today.getMonth() && 
-               expDate.getFullYear() === today.getFullYear();
+        const todayStr = getLocalDateStrFromVal(new Date());
+        return expLocalDateStr === todayStr;
       }
       
       if (timeFrame === 'month') {
-        return expDate.getMonth() === now.getMonth() && expDate.getFullYear() === now.getFullYear();
+        return m === (now.getMonth() + 1) && y === now.getFullYear();
       }
       
       if (timeFrame === 'quarter') {
         const currentQuarter = Math.floor(now.getMonth() / 3);
-        const expQuarter = Math.floor(expDate.getMonth() / 3);
-        return currentQuarter === expQuarter && expDate.getFullYear() === now.getFullYear();
+        const expQuarter = Math.floor((m - 1) / 3);
+        return currentQuarter === expQuarter && y === now.getFullYear();
       }
       
       if (timeFrame === 'year') {
-        return expDate.getFullYear() === now.getFullYear();
+        return y === now.getFullYear();
       }
 
       if (timeFrame === 'custom' && dateRange.start && dateRange.end) {
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        return expDate >= start && expDate <= end;
+        const start = getLocalDateStrFromVal(dateRange.start);
+        const end = getLocalDateStrFromVal(dateRange.end);
+        return expLocalDateStr >= start && expLocalDateStr <= end;
       }
       
       return true; // default/all
@@ -367,34 +385,34 @@ export default function Dashboard() {
     const filteredApts = appointments.filter((apt: any) => {
       const dateVal = apt.appointment_date || apt.appointmentDate || apt.created_at;
       if (!dateVal) return false;
-      const aptDate = new Date(dateVal);
-      if (isNaN(aptDate.getTime())) return false;
+      const aptLocalDateStr = getLocalDateStrFromVal(dateVal);
+      if (!aptLocalDateStr) return false;
+      
+      const [y, m] = aptLocalDateStr.split('-').map(Number);
       
       if (timeFrame === 'today') {
-        const today = new Date();
-        return aptDate.getDate() === today.getDate() && 
-               aptDate.getMonth() === today.getMonth() && 
-               aptDate.getFullYear() === today.getFullYear();
+        const todayStr = getLocalDateStrFromVal(new Date());
+        return aptLocalDateStr === todayStr;
       }
       
       if (timeFrame === 'month') {
-        return aptDate.getMonth() === now.getMonth() && aptDate.getFullYear() === now.getFullYear();
+        return m === (now.getMonth() + 1) && y === now.getFullYear();
       }
       
       if (timeFrame === 'quarter') {
         const currentQuarter = Math.floor(now.getMonth() / 3);
-        const aptQuarter = Math.floor(aptDate.getMonth() / 3);
-        return currentQuarter === aptQuarter && aptDate.getFullYear() === now.getFullYear();
+        const aptQuarter = Math.floor((m - 1) / 3);
+        return currentQuarter === aptQuarter && y === now.getFullYear();
       }
       
       if (timeFrame === 'year') {
-        return aptDate.getFullYear() === now.getFullYear();
+        return y === now.getFullYear();
       }
 
       if (timeFrame === 'custom' && dateRange.start && dateRange.end) {
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        return aptDate >= start && aptDate <= end;
+        const start = getLocalDateStrFromVal(dateRange.start);
+        const end = getLocalDateStrFromVal(dateRange.end);
+        return aptLocalDateStr >= start && aptLocalDateStr <= end;
       }
       
       return true; // default/all

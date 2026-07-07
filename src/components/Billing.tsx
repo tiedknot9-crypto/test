@@ -42,7 +42,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { MOCK_USERS, MOCK_BILLING, MOCK_BED_RATES, MOCK_OT_RATES, MOCK_LAB_TESTS, MOCK_MATERIAL_RATES } from '@/mockData';
-import { supabaseService, isDummyPatient } from '@/services/supabaseService';
+import { supabaseService, isDummyPatient, toDeterministicUuid } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
 import { canUserViewFinancials, canUserManageBilling, normalizeRole } from '@/utils/rbac';
 import { 
@@ -151,8 +151,10 @@ export default function Billing() {
 
           const hasInvoice = enrichedInvoices.some((inv: any) => {
             const invPid = inv.patient_id || inv.patientId;
+            const cleanInvPid = toDeterministicUuid(invPid);
+            const cleanAptPid = toDeterministicUuid(pId);
             const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
-            return invPid === pId && (invDateStr === aptDateStr || inv.type === 'OPD');
+            return cleanInvPid === cleanAptPid && (invDateStr === aptDateStr || inv.type === 'OPD');
           });
 
           if (!hasInvoice) {

@@ -28,13 +28,13 @@ function sanitizeUuid(val: any): any {
   return valStr;
 }
 
-function isUuid(val: any): boolean {
+export function isUuid(val: any): boolean {
   if (typeof val !== 'string') return false;
   const sanitized = sanitizeUuid(val);
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sanitized);
 }
 
-function toDeterministicUuid(val: any): string {
+export function toDeterministicUuid(val: any): string {
   if (!val) return val;
   let valStr = String(val).trim();
   valStr = sanitizeUuid(valStr);

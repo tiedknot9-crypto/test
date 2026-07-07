@@ -57,7 +57,7 @@ import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { storage, STORAGE_KEYS } from '@/lib/storage';
 import { playNotificationSound } from '@/lib/notifications';
-import { supabaseService } from '@/services/supabaseService';
+import { supabaseService, toDeterministicUuid } from '@/services/supabaseService';
 import { useDataSync } from '@/hooks/useDataSync';
 import { canUserEditRecord, canUserEditClinicalData, canUserManageBilling, normalizeRole, canUserModifyRecord } from '@/utils/rbac';
 import { getPrescriptionPrintHtml } from '@/lib/prescriptionPrint';
@@ -1203,7 +1203,9 @@ export default function OPD() {
           if (patientId) {
             const invoices = await supabaseService.getInvoices();
             const pendingOPDInvoices = invoices && invoices.length > 0 ? invoices.filter((inv: any) => {
-              const isMatchPatient = (inv.patient_id === patientId || inv.patientId === patientId);
+              const cleanInvPid = toDeterministicUuid(inv.patient_id || inv.patientId);
+              const cleanAptPid = toDeterministicUuid(patientId);
+              const isMatchPatient = cleanInvPid === cleanAptPid;
               const isUnpaid = (inv.status || inv.payment_status || '').toLowerCase() === 'unpaid';
               const isOPD = inv.type === 'OPD' || 
                             inv.invoice_number?.startsWith('INV-REG') || 
