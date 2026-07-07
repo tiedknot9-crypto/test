@@ -1268,11 +1268,12 @@ export default function Dashboard() {
                 </div>
 
                 <Button 
+                  id="reception-book-appointment-btn"
                   onClick={handleQuickBook}
                   className="w-full h-10 font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-2 mt-2 shadow-md"
                 >
                   <PlusCircle className="w-4 h-4" />
-                  Confirm Walk-in Booking & Print Token
+                  Book Appointment
                 </Button>
               </div>
 

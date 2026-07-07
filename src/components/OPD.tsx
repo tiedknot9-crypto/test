@@ -1569,7 +1569,7 @@ export default function OPD() {
                 Export {activeTab === 'patients' ? 'Records' : 'Queue'}
               </Button>
             )}
-            {!isAccountant && !isReceptionist && currentUser?.role !== 'DOCTOR' && (
+            {!isAccountant && currentUser?.role !== 'DOCTOR' && (
               <Button 
                 className="bg-white text-teal-900 hover:bg-teal-50 gap-2 rounded-xl font-black h-10 shadow-md"
                 onClick={() => handleOpenAppointmentChange(true)}
@@ -2287,7 +2287,7 @@ export default function OPD() {
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
-                          {!isAccountant && !isReceptionist && (
+                          {!isAccountant && (
                             <Button 
                               variant="ghost" 
                               size="sm" 
