@@ -116,54 +116,6 @@ export default function Billing() {
         let totalAmt = inv.total_amount ?? inv.totalAmount ?? 0;
         let status = inv.status || inv.payment_status || 'Unpaid';
 
-        if ((inv.type === 'OPD' || inv.type === 'Independent') && appointmentsData) {
-          const invDateStr = inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : '';
-          const matchingApt = appointmentsData.find((apt: any) => {
-            const aptPid = apt.patient_id || apt.patientId;
-            const aptDateStr = apt.appointment_date || (apt.created_at ? new Date(apt.created_at).toISOString().split('T')[0] : '');
-            return aptPid === pId && (aptDateStr === invDateStr || invDateStr === '');
-          });
-
-          if (matchingApt) {
-            const aptFee = Number(matchingApt.fee || matchingApt.appointmentFee || 500);
-            const aptDisc = Number(matchingApt.discount_amount || matchingApt.discountAmount || 0);
-            const aptPaymentStatus = matchingApt.payment_status || matchingApt.paymentStatus || 'Pending';
-            
-            totalAmt = aptFee;
-            discountAmt = aptDisc;
-            payableAmt = Math.max(0, aptFee - aptDisc);
-            
-            if (aptPaymentStatus === 'Paid') {
-              paidAmt = payableAmt;
-              status = 'Paid';
-            } else if (aptPaymentStatus === 'Refunded') {
-              paidAmt = 0;
-              status = 'Refunded';
-            } else {
-              paidAmt = 0;
-              status = 'Unpaid';
-            }
-
-            // Trigger permanent database healing if mismatch is present
-            const rawPaid = Number(inv.paid_amount ?? inv.paidAmount ?? 0);
-            const rawDisc = Number(inv.discount_amount ?? inv.discountAmount ?? 0);
-            const rawTotal = Number(inv.total_amount ?? inv.totalAmount ?? 0);
-            const rawStatus = inv.status || inv.payment_status || 'Unpaid';
-
-            if (rawPaid !== paidAmt || rawDisc !== discountAmt || rawTotal !== totalAmt || rawStatus !== status) {
-              supabaseService.updateInvoice(inv.id, {
-                ...inv,
-                status: status,
-                payment_status: status,
-                total_amount: totalAmt,
-                discount_amount: discountAmt,
-                payable_amount: payableAmt,
-                paid_amount: paidAmt
-              }).catch(err => console.warn('Silent failure healing invoice:', err));
-            }
-          }
-        }
-
         return {
           ...inv,
           discount_amount: discountAmt,

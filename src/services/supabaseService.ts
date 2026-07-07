@@ -659,7 +659,36 @@ function mapInvoiceFromPostgres(inv: any) {
   const pStatus = inv.payment_status || inv.paymentStatus || inv.status || 'Unpaid';
   const pMethod = inv.payment_method || inv.paymentMethod || inv.paymentMode || 'Cash';
   const iNum = inv.invoice_number || inv.invoiceNumber || inv.id || '';
-  const iType = inv.type || inv.invoice_type || 'Independent';
+  
+  let iType = inv.type || inv.invoice_type;
+  if (!iType) {
+    const numUpper = String(iNum).toUpperCase();
+    if (numUpper.startsWith('INV-OPD') || numUpper.startsWith('INV-REG')) {
+      iType = 'OPD';
+    } else if (numUpper.startsWith('INV-MAT')) {
+      iType = 'Maternity';
+    } else if (numUpper.startsWith('INV-POS') || numUpper.startsWith('INV-PHARM')) {
+      iType = 'Pharmacy';
+    } else {
+      // Check items categories
+      const hasPharmacy = items.some((it: any) => {
+        const cat = String(it.category || it.item_type || '').toUpperCase();
+        const name = String(it.item_name || it.description || '').toUpperCase();
+        return cat === 'PHARMACY' || name.includes('MEDICINE') || name.includes('TABLET');
+      });
+      const hasLab = items.some((it: any) => {
+        const cat = String(it.category || it.item_type || '').toUpperCase();
+        return cat === 'LAB' || cat === 'RADIOLOGY' || cat === 'DIAGNOSTICS';
+      });
+      if (hasPharmacy) {
+        iType = 'Pharmacy';
+      } else if (hasLab) {
+        iType = 'Lab';
+      } else {
+        iType = 'Independent';
+      }
+    }
+  }
 
   const mapped = {
     ...inv,
